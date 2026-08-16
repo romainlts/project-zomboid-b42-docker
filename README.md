@@ -67,24 +67,48 @@ docker compose logs -f pz-server
 The first start downloads ~3-5 GB from Steam and then generates the map: expect
 **5 to 15 minutes** before the server is reachable.
 
-## First access
+## Joining from the game
 
-- **Game**: join `SERVER_IP:16261`
-- **Panel**: <http://localhost:3001> - create the admin account on first visit
-- When adding the server in the panel, keep **Local Server** and enter the
-  **container** paths: `/zomboid` as *Server Data Path*, `/pz-server` as
-  *Server Install Path*. Never the paths on your own machine.
-- Click **Detect** before anything else: the panel refuses to add a server it
-  has not detected, then asks for the RCON password from your `.env`.
-- Set *Max Memory* to match `SERVER_MEMORY` (6 GB by default), not the 4 GB the
-  form suggests.
+In Project Zomboid: **Join** -> **Favorites** -> **Add server**, then the
+machine's address and port `16261`. Use `127.0.0.1` from the machine itself,
+its LAN address from another computer on the same network.
 
-> The panel's **Test Connection** button always fails here, reporting
-> `Unreachable: check host and port`. In "Local Server" mode it probes
-> `127.0.0.1:27015`, which inside the panel container is the panel itself, not
-> the game server. The real connection uses `RCON_HOST=pz-server` from the
-> compose file and works; check `docker compose logs panel` for
-> `[RCON] connected to pz-server:27015`.
+Leave the *server password* empty unless you set `SERVER_PASSWORD`.
+
+The game then asks for a **username and password**: those are your player
+account, not the server's. With `Open=true` the account is created on first
+join, so pick whatever you like. To get in-game admin rights, log in as
+`admin` with the `ADMIN_PASSWORD` from your `.env`.
+
+`SERVER_PUBLIC=false` keeps the server out of the public list. Direct
+connection is unaffected.
+
+## Adding the server to the panel
+
+Open <http://localhost:3001> and create the panel admin account on first
+visit. Then add the server:
+
+1. Keep **Local Server**, and enter the **container** paths: `/zomboid` as
+   *Server Data Path*, `/pz-server` as *Server Install Path*. Never the paths
+   on your own machine.
+2. Click **Detect** before anything else - the panel refuses to add a server it
+   has not detected - then enter the RCON password from your `.env`.
+3. Set *Min* and *Max Memory* to `SERVER_MEMORY` (6 GB by default), not the 2
+   and 4 the form suggests.
+4. **Once added, open the card's `...` menu -> Edit Server, and set *RCON Host*
+   to `pz-server`.** This step is not optional: the add form does not show the
+   field and hardcodes `127.0.0.1`, which inside the panel container points at
+   the panel itself. Until you change it, the card shows `RCON Down`.
+
+The card should then read `RCON Up`, and `docker compose logs panel` show
+`[RCON] connected to pz-server:27015`.
+
+> Two indicators stay red, and both are harmless. **Test Connection** always
+> reports `Unreachable: check host and port`: it probes `127.0.0.1:27015`
+> regardless of the host you configured. **Process Down** is expected too - the
+> panel looks for the Java process inside its own container and cannot see
+> another one. Only the card's `Start` button is inert as a result; the server
+> is driven by `docker compose` and its restart policy.
 
 ---
 
