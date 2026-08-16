@@ -1,0 +1,30 @@
+# secrets & config locale
+.env
+*.env
+!.env.example
+
+# donnees runtime
+panel/data/
+panel/logs/
+data/
+backups/
+*.log
+
+# assistants IA (contexte local, non versionne)
+CLAUDE.md
+.claude/
+
+# documentation locale (notes de mise en place, identite git, chemins locaux)
+docs/
+
+# OS / editeurs
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# divers
+*.tmp
+*.bak
+node_modules/
