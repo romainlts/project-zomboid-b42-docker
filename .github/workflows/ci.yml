@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Valider docker-compose.yml
+        run: |
+          cp .env.example .env
+          sed -i 's/^ADMIN_PASSWORD=.*/ADMIN_PASSWORD=ci/' .env
+          sed -i 's/^RCON_PASSWORD=.*/RCON_PASSWORD=ci/' .env
+          docker compose config --quiet
+          docker compose --profile proxy config --quiet
+
+      - name: ShellCheck
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          shellcheck -S warning server/*.sh scripts/*.sh
+
+      - name: Build de l'image serveur
+        run: docker build -t pz-b42-server:ci ./server
