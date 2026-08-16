@@ -71,8 +71,20 @@ The first start downloads ~3-5 GB from Steam and then generates the map: expect
 
 - **Game**: join `SERVER_IP:16261`
 - **Panel**: <http://localhost:3001> - create the admin account on first visit
-- In the panel settings, enter the **container** paths - `/pz-server` and
-  `/zomboid` - and definitely not the paths on your own machine
+- When adding the server in the panel, keep **Local Server** and enter the
+  **container** paths: `/zomboid` as *Server Data Path*, `/pz-server` as
+  *Server Install Path*. Never the paths on your own machine.
+- Click **Detect** before anything else: the panel refuses to add a server it
+  has not detected, then asks for the RCON password from your `.env`.
+- Set *Max Memory* to match `SERVER_MEMORY` (6 GB by default), not the 4 GB the
+  form suggests.
+
+> The panel's **Test Connection** button always fails here, reporting
+> `Unreachable: check host and port`. In "Local Server" mode it probes
+> `127.0.0.1:27015`, which inside the panel container is the panel itself, not
+> the game server. The real connection uses `RCON_HOST=pz-server` from the
+> compose file and works; check `docker compose logs panel` for
+> `[RCON] connected to pz-server:27015`.
 
 ---
 
@@ -93,6 +105,11 @@ in [`.env.example`](.env.example); the main ones are listed below.
 | `TZ`, `PUID`, `PGID` | timezone and system identity |
 
 After any change: `docker compose up -d`.
+
+> Run it **without naming a service**. Variables such as `RCON_PASSWORD` are
+> shared by several containers, and `docker compose up -d pz-server` recreates
+> that one alone: the panel keeps the old value and its RCON authentication
+> fails silently, retrying every 60 s with nothing visible outside the logs.
 
 ## `.env` or panel: which one wins?
 
