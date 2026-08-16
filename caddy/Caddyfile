@@ -21,6 +21,15 @@
 {$CADDY_SITE_ADDRESS} {
 	encode zstd gzip
 
+	# Source restriction. PANEL_ALLOWED_IPS defaults to the whole Internet, so
+	# this is a no-op until you narrow it in the .env. Refusing here means the
+	# panel never sees the request at all.
+	# FR : Restriction par source. PANEL_ALLOWED_IPS vaut tout Internet par
+	# FR : defaut, donc sans effet tant que tu ne le restreins pas dans le .env.
+	# FR : Refuser ici signifie que le panel ne voit meme pas la requete.
+	@denied not remote_ip {$PANEL_ALLOWED_IPS}
+	respond @denied "Forbidden" 403
+
 	# reverse_proxy handles websockets and X-Forwarded-* headers on its own
 	# FR : reverse_proxy gere seul les websockets et les en-tetes X-Forwarded-*
 	reverse_proxy panel:3001
