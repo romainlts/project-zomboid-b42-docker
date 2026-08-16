@@ -230,7 +230,86 @@ docker compose version
 > Appartenir au groupe `docker` équivaut à un accès root sur la machine.
 > N'y ajoute que des utilisateurs à qui tu confierais `sudo`.
 
-## 7. Compléments recommandés
+## 7. Git et accès au dépôt
+
+`git` est déjà installé par la section 5. Il reste à lui dire qui tu es, et à
+donner au serveur un moyen d'atteindre le dépôt.
+
+### Identité
+
+```bash
+git config --global user.name "Ton Nom"
+git config --global user.email "toi@example.com"
+git config --global init.defaultBranch main
+```
+
+### Cloner
+
+Le dépôt est public, aucun identifiant n'est nécessaire :
+
+```bash
+git clone https://github.com/romainlts/project-zomboid-b42-docker.git
+cd project-zomboid-b42-docker
+```
+
+<details>
+<summary>Si tu as rendu ton propre fork privé</summary>
+
+Un clone anonyme échoue alors. La meilleure option pour un serveur est une
+**deploy key** : une clé SSH donnant accès en lecture à ce seul dépôt, et à
+rien d'autre sur ton compte.
+
+Génère-la sur le serveur, sans passphrase pour que `git pull` reste
+scriptable, et affiche la partie publique :
+
+```bash
+ssh-keygen -t ed25519 -C "pz-server deploy key" -f ~/.ssh/id_pz_deploy -N ""
+cat ~/.ssh/id_pz_deploy.pub
+```
+
+Sur GitHub, ouvre le dépôt, puis `Settings` -> `Deploy keys` ->
+`Add deploy key`. Colle la clé, nomme-la, et laisse *Allow write access*
+décoché : le serveur n'a besoin que de lire.
+
+Indique cette clé à SSH, vérifie, puis clone en SSH :
+
+```bash
+printf 'Host github.com
+  IdentityFile ~/.ssh/id_pz_deploy
+  IdentitiesOnly yes
+' >> ~/.ssh/config
+ssh -T git@github.com
+git clone git@github.com:<toi>/<ton-fork>.git
+```
+
+Que `ssh -T` réponde que tu es authentifié mais qu'il n'y a pas d'accès shell
+est la réponse attendue.
+
+Ne réutilise pas la clé de la section 3 : celle-là est ta connexion personnelle
+au serveur, une deploy key est limitée à un dépôt et se révoque séparément.
+
+</details>
+
+### Mettre à jour plus tard
+
+Le fichier `.env` n'est **pas** dans le dépôt, donc un pull n'écrase jamais ta
+configuration :
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+Si `.env.example` a gagné de nouvelles variables, compare-le à ton `.env` :
+
+```bash
+diff <(grep -oE '^[A-Z_]+=' .env.example | sort) <(grep -oE '^[A-Z_]+=' .env | sort)
+```
+
+Reconstruire redémarre le serveur et déconnecte les joueurs. L'arrêt est propre
+- le monde est sauvegardé - mais préviens si quelqu'un joue.
+
+## 8. Compléments recommandés
 
 ### Mises à jour de sécurité automatiques
 
@@ -259,7 +338,7 @@ sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
-## 8. Vérifications avant d'installer le stack
+## 9. Vérifications avant d'installer le stack
 
 ```bash
 sudo ufw status          # actif, SSH + ports UDP du jeu autorises
@@ -269,11 +348,18 @@ df -h /                  # au moins 10 Go libres
 id                       # ton utilisateur est dans le groupe docker
 ```
 
-## 9. Installer le serveur
+## 10. Installer le serveur
 
-La machine est prête. Direction le
-[README principal, section 1](README.fr.md#1-installation), et reprends au
-`git clone`.
+La machine est prête et le dépôt est cloné. Depuis son répertoire :
+
+```bash
+cp .env.example .env
+```
+
+Renseigne `ADMIN_PASSWORD` et `RCON_PASSWORD` - le stack refuse de démarrer
+sans eux - puis suis le
+[README principal, section 1](README.fr.md#1-installation) à partir du
+`docker compose up`.
 
 Deux réglages à penser dans ton `.env`, compte tenu de ce guide :
 
