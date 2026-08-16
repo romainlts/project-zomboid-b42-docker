@@ -45,6 +45,13 @@ services:
     volumes:
       - pz-install:/pz-server
       - zomboid-data:/zomboid
+    # The panel only acts on containers carrying this label, and only when
+    # PANEL_DOCKER_CONTROL is on. Harmless on its own: a label grants nothing.
+    # FR : Le panel n'agit que sur les conteneurs portant ce label, et
+    # FR : seulement si PANEL_DOCKER_CONTROL est actif. Inoffensif en soi :
+    # FR : un label ne donne aucun droit.
+    labels:
+      zomboid-panel.managed: "true"
     networks:
       - pz-net
     healthcheck:
@@ -94,9 +101,31 @@ services:
       STEAM_API_KEY: ${STEAM_API_KEY:-}
       CORS_ORIGINS: ${PANEL_CORS_ORIGINS:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Lets the panel start/stop/restart the labelled container. Read the
+      # warning on PANEL_DOCKER_SOCKET below before turning this on.
+      # FR : Autorise le panel a demarrer/arreter/redemarrer le conteneur
+      # FR : labellise. Lis l'avertissement sur PANEL_DOCKER_SOCKET avant.
+      PANEL_DOCKER_CONTROL_ENABLED: ${PANEL_DOCKER_CONTROL:-false}
     volumes:
       - ./panel/data:/app/data
       - ./panel/logs:/app/logs
+      # DANGER. The Docker socket is an unauthenticated root-level API: anything
+      # that reaches it can create a container mounting the host filesystem, and
+      # therefore take over the machine. Mounting it here means a panel
+      # compromise costs you the host, not just the game server.
+      # Only set PANEL_DOCKER_SOCKET when the panel is NOT reachable from the
+      # Internet (SSH tunnel, or PANEL_ALLOWED_IPS restricted to your own IP).
+      # Left unset, /dev/null is mounted instead and the panel finds no daemon.
+      #
+      # FR : DANGER. Le socket Docker est une API root sans authentification :
+      # FR : qui l'atteint peut creer un conteneur montant le disque de l'hote,
+      # FR : donc prendre la machine. Le monter ici signifie qu'une compromission
+      # FR : du panel te coute l'hote, pas seulement le serveur de jeu.
+      # FR : Ne renseigne PANEL_DOCKER_SOCKET que si le panel n'est PAS joignable
+      # FR : depuis Internet (tunnel SSH, ou PANEL_ALLOWED_IPS limite a ton IP).
+      # FR : Non renseigne, /dev/null est monte a la place et le panel ne trouve
+      # FR : aucun demon.
+      - ${PANEL_DOCKER_SOCKET:-/dev/null}:/var/run/docker.sock
       # shared access to the server files (mods, configs, logs, saves)
       # FR : acces partage aux fichiers du serveur (mods, configs, logs, saves)
       - pz-install:/pz-server
@@ -166,6 +195,11 @@ services:
       # domain set -> automatic HTTPS ; empty -> ":80" (local HTTP)
       # FR : domaine renseigne -> HTTPS auto ; vide -> ":80" (HTTP local)
       CADDY_SITE_ADDRESS: ${CADDY_DOMAIN:-:80}
+      # Space-separated CIDRs allowed to reach the panel. The default lets
+      # everyone in, which is the previous behaviour.
+      # FR : CIDR autorises a joindre le panel, separes par des espaces. Le
+      # FR : defaut laisse tout passer, comportement anterieur.
+      PANEL_ALLOWED_IPS: ${PANEL_ALLOWED_IPS:-0.0.0.0/0 ::/0}
     ports:
       - "80:80"
       - "443:443"

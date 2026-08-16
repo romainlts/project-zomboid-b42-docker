@@ -446,6 +446,63 @@ docker compose --profile proxy up -d --force-recreate panel
 
 ---
 
+## Restreindre l'accès au panel
+
+Un domaine public est découvert et sondé par des scanners de vulnérabilités en
+quelques minutes. `PANEL_ALLOWED_IPS` fait refuser par Caddy tout ce qui ne
+vient pas des adresses listées, avant même que le panel ne voie la requête :
+
+```
+PANEL_ALLOWED_IPS=203.0.113.7/32
+```
+
+Des CIDR séparés par des espaces. Vide signifie tout Internet, ce qui est le
+défaut. Trouve ton adresse avec `curl -4 ifconfig.me`.
+
+Utile seulement si ton IP domestique est stable, puisque la perdre te ferme le
+panel web. Le tunnel SSH ci-dessous reste toujours une porte de secours : c'est
+donc récupérable, pas définitif.
+
+## Le contrôle Docker, et ce qu'il coûte
+
+Par défaut le panel ne voit pas le processus du jeu : il cherche dans son
+propre conteneur et n'y trouve aucun Java. La carte affiche `Process Down`,
+`Start` est inerte, et le cycle de vie appartient à `docker compose`.
+
+Deux réglages donnent au panel un vrai contrôle, ce qui corrige aussi
+l'indicateur :
+
+```
+PANEL_DOCKER_CONTROL=true
+PANEL_DOCKER_SOCKET=/var/run/docker.sock
+```
+
+Le conteneur `pz-server` porte déjà le label `zomboid-panel.managed=true` exigé
+par le panel. Termine dans l'interface : `...` -> Edit Server -> *Docker
+Container Name* -> `pz-server`.
+
+> **Comprends l'échange avant d'activer.** Le socket Docker est une API root
+> sans authentification. Tout ce qui l'atteint peut créer un conteneur montant
+> le disque de l'hôte, et de là posséder la machine. C'est le fonctionnement
+> normal de Docker, pas une faille.
+>
+> Sans lui, une compromission du panel te coûte `db.json`, le mot de passe RCON
+> et le monde de jeu - grave, mais borné, et un backup te remet d'aplomb. Avec
+> lui, la même compromission te coûte l'hôte : clés SSH, root, persistance.
+
+Ne l'active donc que si le panel n'est **pas** joignable depuis Internet, soit
+en restreignant `PANEL_ALLOWED_IPS` à ton adresse, soit en abandonnant Caddy au
+profit d'un tunnel SSH :
+
+```bash
+ssh -L 3001:127.0.0.1:3001 user@ton-serveur
+```
+
+avec `PANEL_BIND=127.0.0.1`, puis `http://localhost:3001` dans le navigateur.
+
+Un panel joignable publiquement **et** un socket Docker monté est la seule
+combinaison à éviter. Chacun pris séparément se défend.
+
 # Sécurité
 
 - Ne commit **jamais** ton `.env` (déjà couvert par `.gitignore`).
@@ -453,6 +510,8 @@ docker compose --profile proxy up -d --force-recreate panel
   `PANEL_BIND=127.0.0.1`.
 - Le port RCON n'est pas publié sur l'hôte : il n'est joignable que depuis le
   réseau Docker interne.
+- Ne monte pas le socket Docker dans un panel joignable depuis Internet : voir
+  les deux sections ci-dessus.
 
 # Structure
 

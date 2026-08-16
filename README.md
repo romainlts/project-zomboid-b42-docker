@@ -434,6 +434,62 @@ docker compose --profile proxy up -d --force-recreate panel
 
 ---
 
+## Restricting who reaches the panel
+
+A public domain is found and probed by vulnerability scanners within minutes.
+`PANEL_ALLOWED_IPS` makes Caddy refuse everything but the addresses you list,
+before the panel ever sees the request:
+
+```
+PANEL_ALLOWED_IPS=203.0.113.7/32
+```
+
+Space-separated CIDRs. Empty means the whole Internet, which is the default.
+Find your address with `curl -4 ifconfig.me`.
+
+Only worth it on a stable home IP, since losing it locks you out of the web
+panel. The SSH tunnel below always remains as a way back in, so this is
+recoverable, not final.
+
+## Docker control, and what it costs
+
+By default the panel cannot see the game process: it looks inside its own
+container and finds no Java. The card reads `Process Down`, `Start` does
+nothing, and lifecycle actions belong to `docker compose`.
+
+Two settings hand the panel real control, which also fixes the indicator:
+
+```
+PANEL_DOCKER_CONTROL=true
+PANEL_DOCKER_SOCKET=/var/run/docker.sock
+```
+
+The `pz-server` container already carries the `zomboid-panel.managed=true`
+label the panel requires. Finish in the UI: `...` -> Edit Server -> *Docker
+Container Name* -> `pz-server`.
+
+> **Understand the trade before enabling it.** The Docker socket is an
+> unauthenticated root-level API. Anything that reaches it can create a
+> container mounting the host filesystem, and from there own the machine. This
+> is normal Docker behaviour, not a vulnerability.
+>
+> Without it, a panel compromise costs you `db.json`, the RCON password and the
+> game world - bad, but bounded, and a backup restores it. With it, the same
+> compromise costs you the host: SSH keys, root, persistence.
+
+So enable it only when the panel is **not** reachable from the Internet, either
+by narrowing `PANEL_ALLOWED_IPS` to your own address, or by dropping Caddy and
+going through an SSH tunnel:
+
+```bash
+ssh -L 3001:127.0.0.1:3001 user@your-server
+```
+
+with `PANEL_BIND=127.0.0.1`, then browse to `http://localhost:3001`.
+
+A publicly reachable panel *and* a mounted Docker socket is the one combination
+to avoid. Either alone is defensible.
+
 # Security
 
 - **Never** commit your `.env` (already covered by `.gitignore`).
@@ -441,6 +497,8 @@ docker compose --profile proxy up -d --force-recreate panel
   `PANEL_BIND=127.0.0.1`.
 - The RCON port is not published on the host: it is only reachable from the
   internal Docker network.
+- Do not mount the Docker socket into a panel that the Internet can reach: see
+  the two sections above.
 
 # Layout
 
