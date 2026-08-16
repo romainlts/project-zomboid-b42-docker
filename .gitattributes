@@ -1,11 +1,16 @@
-# Normalisation des fins de ligne.
-# Les scripts et configs sont consommes par des conteneurs Linux :
-# du CRLF les casse (bad interpreter: ...^M). On force LF, quelle que soit
-# la config git de la machine (core.autocrlf).
+# Line ending normalisation.
+# Scripts and configs are consumed by Linux containers: CRLF breaks them
+# (bad interpreter: ...^M). We force LF regardless of the machine's git
+# configuration (core.autocrlf).
+#
+# FR : Normalisation des fins de ligne.
+# FR : Les scripts et configs sont consommes par des conteneurs Linux :
+# FR : du CRLF les casse (bad interpreter: ...^M). On force LF, quelle que
+# FR : soit la config git de la machine (core.autocrlf).
 
 * text=auto eol=lf
 
-# --- doivent imperativement rester en LF ---
+# --- must absolutely stay in LF / FR : doivent imperativement rester en LF ---
 *.sh            text eol=lf
 *.bash          text eol=lf
 *.yml           text eol=lf

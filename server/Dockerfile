@@ -9,7 +9,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PZ_DIR=/pz-server \
     ZOMBOID_DIR=/zomboid
 
-# steamcmd est 32 bits -> il faut l'archi i386
+# steamcmd is 32-bit -> the i386 architecture is required
+# FR : steamcmd est 32 bits -> il faut l'archi i386
 RUN dpkg --add-architecture i386 \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
@@ -26,12 +27,13 @@ RUN groupadd -g "${GID}" pz \
  && mkdir -p "${STEAM_DIR}" "${PZ_DIR}" "${ZOMBOID_DIR}" \
  && chown -R pz:pz "${STEAM_DIR}" "${PZ_DIR}" "${ZOMBOID_DIR}" /home/pz
 
-# steamcmd
+# steamcmd itself / FR : steamcmd lui-meme
 RUN curl -sSL https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
       | tar -xz -C "${STEAM_DIR}" \
  && chown -R pz:pz "${STEAM_DIR}"
 
-# client rcon en CLI (gorcon) - utilise par scripts/rcon.sh
+# CLI rcon client (gorcon), used by scripts/rcon.sh
+# FR : client rcon en CLI (gorcon), utilise par scripts/rcon.sh
 ARG RCON_CLI_VERSION=0.10.3
 RUN curl -sSL "https://github.com/gorcon/rcon-cli/releases/download/v${RCON_CLI_VERSION}/rcon-${RCON_CLI_VERSION}-amd64_linux.tar.gz" \
       -o /tmp/rcon.tgz \
@@ -46,7 +48,8 @@ COPY defaults/ /opt/pz-defaults/
 RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/start-server.sh \
              /usr/local/bin/backup-runner.sh
 
-# game / steam query / rcon
+# game / steam query / rcon ports
+# FR : ports jeu / requete steam / rcon
 EXPOSE 16261/udp 16262/udp 27015/tcp
 
 WORKDIR ${PZ_DIR}

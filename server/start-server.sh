@@ -23,7 +23,8 @@ mkdir -p "$CFG_DIR" "$ZOMBOID_DIR/Saves" "$ZOMBOID_DIR/Logs" "$ZOMBOID_DIR/backu
 
 INI="$CFG_DIR/${SERVER_NAME}.ini"
 
-# --- generation du .ini au premier demarrage --------------------------------
+# --- generate the .ini on first start ---------------------------------------
+# FR : generation du .ini au premier demarrage
 FIRST_BOOT=0
 if [ ! -f "$INI" ]; then
   log "Creation de $INI"
@@ -31,23 +32,36 @@ if [ ! -f "$INI" ]; then
   FIRST_BOOT=1
 fi
 
-# --- application des variables d'env sur le .ini (idempotent) ---------------
-# Deux regimes, pour cohabiter avec le panel web qui edite le meme fichier :
+# --- apply env variables onto the .ini (idempotent) -------------------------
+# Two regimes, so that we can coexist with the web panel editing the same file:
 #
-#   set_ini   cles d'infrastructure (ports, RCON). Le .env fait foi et la
-#             valeur est reappliquee a chaque demarrage : elles doivent rester
-#             alignees sur docker-compose.yml.
-#   seed_ini  reglages que le panel gere aussi (mods, MaxPlayers, ...). Le .env
-#             ne sert qu'a initialiser le .ini au premier demarrage ; ensuite
-#             c'est le panel qui fait foi et on n'ecrase plus rien.
+#   set_ini   infrastructure keys (ports, RCON). The .env is the source of
+#             truth and the value is reapplied on every start: they must stay
+#             aligned with docker-compose.yml.
+#   seed_ini  settings the panel manages too (mods, MaxPlayers, ...). The .env
+#             only seeds the .ini on the first start; afterwards the panel is
+#             the source of truth and nothing is overwritten.
 #
-# PZ_FORCE_INI_KEYS force la reapplication de cles seed_ini depuis le .env
-# (liste separee par des espaces ou des virgules), le temps d'un demarrage.
+# PZ_FORCE_INI_KEYS forces seed_ini keys to be reapplied from the .env (list
+# separated by spaces or commas), for one start only.
+#
+# FR : application des variables d'env sur le .ini (idempotent)
+# FR : Deux regimes, pour cohabiter avec le panel web qui edite le meme
+# FR : fichier :
+# FR :   set_ini   cles d'infrastructure (ports, RCON). Le .env fait foi et la
+# FR :             valeur est reappliquee a chaque demarrage : elles doivent
+# FR :             rester alignees sur docker-compose.yml.
+# FR :   seed_ini  reglages que le panel gere aussi (mods, MaxPlayers, ...).
+# FR :             Le .env ne sert qu'a initialiser le .ini au premier
+# FR :             demarrage ; ensuite c'est le panel qui fait foi.
+# FR : PZ_FORCE_INI_KEYS force la reapplication de cles seed_ini depuis le
+# FR : .env, le temps d'un demarrage.
 FORCE_KEYS=" $(printf '%s' "${PZ_FORCE_INI_KEYS:-}" | tr ',' ' ') "
 
 write_ini() {
   local key="$1" val="$2" esc
-  # protege les caracteres speciaux de sed dans la valeur (& \ et le separateur)
+  # escape sed-special characters in the value (& \ and the delimiter)
+  # FR : protege les caracteres speciaux de sed dans la valeur
   esc="$(printf '%s' "$val" | sed -e 's/[\\&|]/\\&/g')"
   if grep -q "^${key}=" "$INI"; then
     sed -i "s|^${key}=.*|${key}=${esc}|" "$INI"
@@ -66,14 +80,16 @@ seed_ini() {
   write_ini "$key" "$val"
 }
 
-# --- infrastructure : le .env fait foi --------------------------------------
+# --- infrastructure: the .env is the source of truth ------------------------
+# FR : infrastructure : le .env fait foi
 set_ini DefaultPort        "$DEFAULT_PORT"
 set_ini RCONPort           "$RCON_PORT"
 set_ini RCONPassword       "$RCON_PASSWORD"
 set_ini SteamPort1         "16262"
 set_ini SteamPort2         "16263"
 
-# --- reglages partages avec le panel : seeding au premier boot uniquement ----
+# --- settings shared with the panel: seeded on first boot only --------------
+# FR : reglages partages avec le panel : seeding au premier boot uniquement
 seed_ini Public            "$SERVER_PUBLIC"
 seed_ini PublicName        "$SERVER_PUBLIC_NAME"
 seed_ini MaxPlayers        "$MAX_PLAYERS"
@@ -92,14 +108,17 @@ log "RCON sur 0.0.0.0:${RCON_PORT}"
 
 cd "$PZ_DIR"
 
-# --- heap Java (B42 lit ProjectZomboid64.json) ------------------------------
+# --- Java heap (B42 reads ProjectZomboid64.json) ----------------------------
+# FR : heap Java (B42 lit ProjectZomboid64.json)
 if [ -f "$PZ_DIR/ProjectZomboid64.json" ]; then
   sed -i "s/-Xmx[0-9]\+[gGmM]/-Xmx${SERVER_MEMORY}/" "$PZ_DIR/ProjectZomboid64.json"
   sed -i "s/-Xms[0-9]\+[gGmM]/-Xms${SERVER_MEMORY}/" "$PZ_DIR/ProjectZomboid64.json"
   log "Heap Java fixe a ${SERVER_MEMORY}"
 fi
 
-# PZ ecrit ses donnees dans \$HOME/Zomboid -> on pointe vers le volume partage
+# PZ writes its data to \$HOME/Zomboid -> point it at the shared volume
+# FR : PZ ecrit ses donnees dans \$HOME/Zomboid -> on pointe vers le volume
+# FR : partage
 export HOME=/home/pz
 mkdir -p "$HOME"
 if [ ! -L "$HOME/Zomboid" ]; then
@@ -107,7 +126,8 @@ if [ ! -L "$HOME/Zomboid" ]; then
   ln -s "$ZOMBOID_DIR" "$HOME/Zomboid"
 fi
 
-# arret propre sur SIGTERM (sauvegarde du monde)
+# clean shutdown on SIGTERM (saves the world)
+# FR : arret propre sur SIGTERM (sauvegarde du monde)
 term_handler() {
   log "SIGTERM recu -> quit propre du serveur"
   if [ -n "${PZ_PID:-}" ]; then

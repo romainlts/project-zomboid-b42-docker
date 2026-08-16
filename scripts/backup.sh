@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Snapshot des sauvegardes et configs dans ./backups/
+# Snapshot of saves and configs into ./backups/
+# FR : Snapshot des sauvegardes et configs dans ./backups/
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

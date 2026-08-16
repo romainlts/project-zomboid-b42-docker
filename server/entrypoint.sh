@@ -5,19 +5,25 @@ PZ_DIR="${PZ_DIR:-/pz-server}"
 ZOMBOID_DIR="${ZOMBOID_DIR:-/zomboid}"
 STEAM_DIR="${STEAM_DIR:-/opt/steamcmd}"
 PZ_APPID="${PZ_APPID:-380870}"
-PZ_BRANCH="${PZ_BRANCH:-unstable}"       # "" = branche publique, "unstable" = Build 42
+# "" = public branch, "unstable" = Build 42
+# FR : "" = branche publique, "unstable" = Build 42
+PZ_BRANCH="${PZ_BRANCH:-unstable}"
 PZ_BRANCH_PASSWORD="${PZ_BRANCH_PASSWORD:-}"
-PZ_MANIFEST_ID="${PZ_MANIFEST_ID:-}"     # pin exact d'une build (ex: 42.20.2)
-PZ_DEPOT_ID="${PZ_DEPOT_ID:-}"           # depot auquel appartient le manifest
-PZ_PIN_STRICT="${PZ_PIN_STRICT:-true}"   # true = abandonner plutot qu'installer
-                                         # une autre build que celle demandee
+# exact build pin (e.g. 42.20.2) / FR : pin exact d'une build (ex: 42.20.2)
+PZ_MANIFEST_ID="${PZ_MANIFEST_ID:-}"
+# depot the manifest belongs to / FR : depot auquel appartient le manifest
+PZ_DEPOT_ID="${PZ_DEPOT_ID:-}"
+# true = give up rather than install a build other than the requested one
+# FR : true = abandonner plutot qu'installer une autre build que celle demandee
+PZ_PIN_STRICT="${PZ_PIN_STRICT:-true}"
 UPDATE_ON_START="${UPDATE_ON_START:-true}"
 PUID="${PUID:-1000}"
 PGID="${PGID:-1000}"
 
 log() { printf '\033[36m[pz]\033[0m %s\n' "$*"; }
 
-# --- alignement des UID/GID sur l'hote (utile sous Linux) -------------------
+# --- align UID/GID with the host (useful on Linux) --------------------------
+# FR : alignement des UID/GID sur l'hote (utile sous Linux)
 if [ "$(id -u)" = "0" ]; then
   current_uid="$(id -u pz)"; current_gid="$(id -g pz)"
   [ "$PGID" != "$current_gid" ] && groupmod -o -g "$PGID" pz || true
@@ -29,7 +35,8 @@ fi
 
 export HOME=/home/pz
 
-# --- installation / mise a jour via steamcmd --------------------------------
+# --- install / update through steamcmd --------------------------------------
+# FR : installation / mise a jour via steamcmd
 install_or_update() {
   log "SteamCMD : app ${PZ_APPID} branche='${PZ_BRANCH:-public}' (derniere build)"
 
@@ -44,21 +51,27 @@ install_or_update() {
   "$STEAM_DIR/steamcmd.sh" "${args[@]}"
 }
 
-# --- pin d'une build precise via download_depot ------------------------------
-# app_update installe toujours la derniere build d'une branche. Pour figer une
-# version exacte, il faut passer par le couple depot + manifest (SteamDB).
+# --- pinning an exact build through download_depot --------------------------
+# app_update always installs the latest build of a branch. To freeze an exact
+# version you have to go through the depot + manifest pair (from SteamDB).
+# FR : pin d'une build precise via download_depot
+# FR : app_update installe toujours la derniere build d'une branche. Pour figer
+# FR : une version exacte, il faut passer par le couple depot + manifest.
 PIN_MARKER="$PZ_DIR/.pinned-manifest"
 
-# Telecharge le depot pinne et le deploie sur $PZ_DIR. 0 = succes.
+# Downloads the pinned depot and deploys it onto $PZ_DIR. 0 = success.
+# FR : Telecharge le depot pinne et le deploie sur $PZ_DIR. 0 = succes.
 pin_download() {
   local content_root depot_dir
 
   log "Pin : depot ${PZ_DEPOT_ID}, manifest ${PZ_MANIFEST_ID}"
-  # download_depot ignore force_install_dir : le contenu atterrit sous $HOME.
+  # download_depot ignores force_install_dir: content lands under $HOME.
+  # FR : download_depot ignore force_install_dir : le contenu atterrit sous $HOME.
   "$STEAM_DIR/steamcmd.sh" +login anonymous \
     +download_depot "$PZ_APPID" "$PZ_DEPOT_ID" "$PZ_MANIFEST_ID" +quit || true
 
-  # steamcmd renvoie souvent 0 meme en cas d'echec : on verifie le resultat.
+  # steamcmd often returns 0 even on failure: check the actual result.
+  # FR : steamcmd renvoie souvent 0 meme en cas d'echec : on verifie le resultat.
   content_root="$HOME/Steam/steamapps/content/app_${PZ_APPID}"
   depot_dir="$(find "$content_root" -maxdepth 1 -type d -name "depot_${PZ_DEPOT_ID}*" 2>/dev/null | head -n1)"
 
@@ -77,17 +90,20 @@ pin_download() {
   chmod +x "$PZ_DIR/ProjectZomboid64" "$PZ_DIR/start-server.sh" 2>/dev/null || true
 
   printf '%s\n' "$PZ_MANIFEST_ID" > "$PIN_MARKER"
-  # la copie de travail fait la taille du jeu : on ne la garde pas
+  # the working copy is as large as the game: do not keep it
+  # FR : la copie de travail fait la taille du jeu : on ne la garde pas
   rm -rf "$content_root"
   log "Build pinnee en place (manifest ${PZ_MANIFEST_ID})"
 }
 
-# Echec du pin : on n'installe JAMAIS une autre build en mode strict.
+# Pin failure: in strict mode we NEVER install a different build.
+# FR : Echec du pin : on n'installe JAMAIS une autre build en mode strict.
 pin_failed() {
   if [ "$PZ_PIN_STRICT" = "true" ]; then
     log "ECHEC du pin et PZ_PIN_STRICT=true -> arret."
-    log "Voir docs/PINNING.md. Pour installer la derniere build a la place,"
-    log "mets PZ_PIN_STRICT=false, ou retire PZ_MANIFEST_ID."
+    log "Voir la section 'Figer la version du serveur' du README. Pour installer"
+    log "la derniere build a la place, mets PZ_PIN_STRICT=false, ou retire"
+    log "PZ_MANIFEST_ID."
     exit 1
   fi
   log "ECHEC du pin, repli sur app_update (PZ_PIN_STRICT=false)"
@@ -105,7 +121,8 @@ ensure_pinned() {
     exit 1
   fi
 
-  # deja sur le bon manifest -> rien a faire (et boot rapide)
+  # already on the right manifest -> nothing to do (and a fast boot)
+  # FR : deja sur le bon manifest -> rien a faire (et boot rapide)
   if [ -f "$PIN_MARKER" ] && [ "$(cat "$PIN_MARKER")" = "$PZ_MANIFEST_ID" ] \
      && [ -f "$PZ_DIR/ProjectZomboid64" ]; then
     log "Build deja pinnee sur le manifest ${PZ_MANIFEST_ID} : pas de telechargement"
@@ -116,7 +133,9 @@ ensure_pinned() {
 }
 
 if [ -n "$PZ_MANIFEST_ID" ]; then
-  # le pin prime sur UPDATE_ON_START : une build pinnee ne se met jamais a jour
+  # pinning wins over UPDATE_ON_START: a pinned build never updates itself
+  # FR : le pin prime sur UPDATE_ON_START : une build pinnee ne se met jamais
+  # FR : a jour
   ensure_pinned
 elif [ ! -f "$PZ_DIR/ProjectZomboid64" ] || [ "$UPDATE_ON_START" = "true" ]; then
   rm -f "$PIN_MARKER"
@@ -125,7 +144,8 @@ else
   log "Mise a jour desactivee (UPDATE_ON_START=false)"
 fi
 
-# --- version installee ------------------------------------------------------
+# --- installed version ------------------------------------------------------
+# FR : version installee
 if [ -f "$PZ_DIR/steamapps/appmanifest_${PZ_APPID}.acf" ]; then
   buildid="$(grep -oP '"buildid"\s+"\K[0-9]+' "$PZ_DIR/steamapps/appmanifest_${PZ_APPID}.acf" || true)"
   log "buildid Steam installe : ${buildid:-inconnu}"

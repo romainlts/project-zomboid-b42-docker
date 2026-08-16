@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Envoie une commande RCON au serveur.
+# Sends an RCON command to the server.
 #   ./scripts/rcon.sh players
-#   ./scripts/rcon.sh "servermsg \"Redemarrage dans 5 min\""
+#   ./scripts/rcon.sh "servermsg \"Restarting in 5 minutes\""
+# FR : Envoie une commande RCON au serveur.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 if [ -f .env ]; then set -a; . ./.env; set +a; fi

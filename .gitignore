@@ -1,30 +1,32 @@
-# secrets & config locale
+# secrets & local config / FR : secrets & config locale
 .env
 *.env
 !.env.example
 
-# donnees runtime
+# runtime data / FR : donnees runtime
 panel/data/
 panel/logs/
 data/
 backups/
 *.log
 
-# assistants IA (contexte local, non versionne)
+# AI assistants (local context, not versioned)
+# FR : assistants IA (contexte local, non versionne)
 CLAUDE.md
 .claude/
 
-# documentation locale (notes de mise en place, identite git, chemins locaux)
+# local documentation (setup notes, git identity, local paths)
+# FR : documentation locale (notes de mise en place, chemins locaux)
 docs/
 
-# OS / editeurs
+# OS / editors / FR : OS / editeurs
 .DS_Store
 Thumbs.db
 desktop.ini
 .vscode/
 .idea/
 
-# divers
+# misc / FR : divers
 *.tmp
 *.bak
 node_modules/
