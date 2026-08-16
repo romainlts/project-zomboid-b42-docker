@@ -73,8 +73,20 @@ compte **5 à 15 minutes** avant que le serveur soit joignable.
 
 - **Jeu** : rejoins `IP_DU_SERVEUR:16261`
 - **Panel** : <http://localhost:3001> → crée le compte admin au premier accès
-- Dans les réglages du panel, saisis les chemins **conteneur** - `/pz-server`
-  et `/zomboid` - et surtout pas les chemins de ton PC
+- Pour ajouter le serveur dans le panel, reste sur **Local Server** et saisis
+  les chemins **conteneur** : `/zomboid` en *Server Data Path*, `/pz-server` en
+  *Server Install Path*. Jamais les chemins de ton PC.
+- Clique **Detect** avant tout : le panel refuse d'ajouter un serveur qu'il n'a
+  pas détecté, puis réclame le mot de passe RCON de ton `.env`.
+- Règle *Max Memory* sur la valeur de `SERVER_MEMORY` (6 Go par défaut), et non
+  sur les 4 Go proposés par le formulaire.
+
+> Le bouton **Test Connection** du panel échoue toujours ici, avec
+> `Unreachable: check host and port`. En mode « Local Server » il sonde
+> `127.0.0.1:27015`, qui depuis le conteneur du panel le désigne lui-même et
+> non le serveur de jeu. La vraie connexion utilise `RCON_HOST=pz-server` fourni
+> par le compose et fonctionne ; vérifie avec `docker compose logs panel` la
+> ligne `[RCON] connected to pz-server:27015`.
 
 ---
 
@@ -96,6 +108,12 @@ principales.
 | `TZ`, `PUID`, `PGID` | fuseau horaire et identité système |
 
 Après modification : `docker compose up -d`.
+
+> Lance-le **sans nommer de service**. Des variables comme `RCON_PASSWORD` sont
+> partagées par plusieurs conteneurs, et `docker compose up -d pz-server` ne
+> recrée que celui-là : le panel garde l'ancienne valeur et son authentification
+> RCON échoue silencieusement, avec une nouvelle tentative toutes les 60 s
+> invisible ailleurs que dans les logs.
 
 ## `.env` ou panel : qui configure quoi ?
 
