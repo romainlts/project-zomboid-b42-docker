@@ -1,5 +1,8 @@
-# Config generee au premier demarrage puis surchargee par les variables du .env
-# Les valeurs non pilotees par le .env se modifient ici ou depuis le panel web.
+# Config generated on first start, then overridden by the .env variables.
+# Values not driven by the .env are edited here or from the web panel.
+# FR : Config generee au premier demarrage puis surchargee par les variables
+# FR : du .env. Les valeurs non pilotees par le .env se modifient ici ou
+# FR : depuis le panel web.
 nightlengthmodifier=1.0
 PVP=true
 PauseEmpty=true

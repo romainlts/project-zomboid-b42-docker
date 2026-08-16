@@ -1,19 +1,28 @@
 # =============================================================================
-#  Reverse proxy devant le panel web.
+#  Reverse proxy in front of the web panel.
 #
-#  L'adresse du site vient de CADDY_SITE_ADDRESS, injecte par docker-compose
-#  depuis CADDY_DOMAIN (.env) :
-#    - CADDY_DOMAIN=pz.mondomaine.fr -> HTTPS + certificat Let's Encrypt auto
-#    - CADDY_DOMAIN vide             -> ":80", HTTP simple (usage local)
+#  The site address comes from CADDY_SITE_ADDRESS, injected by docker-compose
+#  from CADDY_DOMAIN (.env):
+#    - CADDY_DOMAIN=pz.mydomain.com -> HTTPS + automatic Let's Encrypt cert
+#    - CADDY_DOMAIN empty           -> ":80", plain HTTP (local use)
 #
-#  Le panel n'est joignable que par le reseau interne pz-net : Caddy est le
-#  seul service expose sur l'hote.
+#  The panel is only reachable over the internal pz-net network: Caddy is the
+#  only service exposed on the host.
+#
+#  FR : Reverse proxy devant le panel web.
+#  FR : L'adresse du site vient de CADDY_SITE_ADDRESS, injecte par
+#  FR : docker-compose depuis CADDY_DOMAIN (.env) :
+#  FR :   - CADDY_DOMAIN renseigne -> HTTPS + certificat Let's Encrypt auto
+#  FR :   - CADDY_DOMAIN vide      -> ":80", HTTP simple (usage local)
+#  FR : Le panel n'est joignable que par le reseau interne pz-net : Caddy est
+#  FR : le seul service expose sur l'hote.
 # =============================================================================
 
 {$CADDY_SITE_ADDRESS} {
 	encode zstd gzip
 
-	# reverse_proxy gere seul les websockets et les en-tetes X-Forwarded-*
+	# reverse_proxy handles websockets and X-Forwarded-* headers on its own
+	# FR : reverse_proxy gere seul les websockets et les en-tetes X-Forwarded-*
 	reverse_proxy panel:3001
 
 	log {

@@ -2,7 +2,8 @@ name: pz-b42
 
 services:
   # ---------------------------------------------------------------------------
-  # Serveur dedie Project Zomboid (Build 42) - installe/maj via SteamCMD
+  # Project Zomboid (Build 42) dedicated server - installed/updated by SteamCMD
+  # FR : Serveur dedie Project Zomboid (Build 42) - installe/maj via SteamCMD
   # ---------------------------------------------------------------------------
   pz-server:
     build:
@@ -50,19 +51,25 @@ services:
     networks:
       - pz-net
     healthcheck:
-      # Une requete RCON prouve que la JVM tourne ET que le serveur traite les
-      # commandes - un simple pgrep laisse passer un serveur fige ou en GC.
-      # $$RCON_PASSWORD est resolu dans le conteneur : le mot de passe
-      # n'apparait pas dans "docker inspect".
+      # An RCON request proves the JVM runs AND the server processes commands -
+      # a plain pgrep lets a frozen or GC-thrashing server pass as healthy.
+      # $$RCON_PASSWORD is resolved inside the container, so the password does
+      # not show up in "docker inspect".
+      # FR : Une requete RCON prouve que la JVM tourne ET que le serveur traite
+      # FR : les commandes - un simple pgrep laisse passer un serveur fige.
+      # FR : $$RCON_PASSWORD est resolu dans le conteneur : le mot de passe
+      # FR : n'apparait pas dans "docker inspect".
       test: ["CMD-SHELL", "rcon -a 127.0.0.1:$$RCON_PORT -p \"$$RCON_PASSWORD\" players >/dev/null 2>&1 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      # premier boot = telechargement Steam + generation de la carte
+      # first boot = Steam download + map generation
+      # FR : premier boot = telechargement Steam + generation de la carte
       start_period: ${PZ_HEALTH_START_PERIOD:-900s}
 
   # ---------------------------------------------------------------------------
-  # Interface d'administration web (Zomboid Control Panel)
+  # Web administration interface (Zomboid Control Panel)
+  # FR : Interface d'administration web (Zomboid Control Panel)
   # https://github.com/fpsacha/zomboid-control-panel
   # ---------------------------------------------------------------------------
   panel:
@@ -72,8 +79,10 @@ services:
     depends_on:
       - pz-server
     ports:
-      # PANEL_BIND=127.0.0.1 quand Caddy est en place : le panel n'est alors
-      # plus joignable que par le reverse proxy.
+      # PANEL_BIND=127.0.0.1 once Caddy is in place: the panel is then only
+      # reachable through the reverse proxy.
+      # FR : PANEL_BIND=127.0.0.1 quand Caddy est en place : le panel n'est
+      # FR : alors plus joignable que par le reverse proxy.
       - "${PANEL_BIND:-0.0.0.0}:${PANEL_PORT:-3001}:3001"
     environment:
       NODE_ENV: production
@@ -91,14 +100,17 @@ services:
     volumes:
       - ./panel/data:/app/data
       - ./panel/logs:/app/logs
-      # acces partage aux fichiers du serveur (mods, configs, logs, saves)
+      # shared access to the server files (mods, configs, logs, saves)
+      # FR : acces partage aux fichiers du serveur (mods, configs, logs, saves)
       - pz-install:/pz-server
       - zomboid-data:/zomboid
     networks:
       - pz-net
     healthcheck:
-      # node est forcement present (le panel est une app node) : pas de
-      # dependance a curl/wget, qui peuvent manquer selon l'image de base.
+      # node is necessarily present (the panel is a node app): no dependency
+      # on curl/wget, which may be missing depending on the base image.
+      # FR : node est forcement present (le panel est une app node) : pas de
+      # FR : dependance a curl/wget, qui peuvent manquer selon l'image.
       test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3001/', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))\""]
       interval: 30s
       timeout: 10s
@@ -106,8 +118,10 @@ services:
       start_period: 60s
 
   # ---------------------------------------------------------------------------
-  # Backup planifie des sauvegardes et configs -> ./backups
-  # Reutilise l'image du serveur (elle embarque tar et le client rcon).
+  # Scheduled backup of saves and configs -> ./backups
+  # Reuses the server image (it already ships tar and the rcon client).
+  # FR : Backup planifie des sauvegardes et configs -> ./backups
+  # FR : Reutilise l'image du serveur (elle embarque tar et le client rcon).
   # ---------------------------------------------------------------------------
   backup:
     build:
@@ -139,7 +153,8 @@ services:
       - pz-net
 
   # ---------------------------------------------------------------------------
-  # Reverse proxy HTTPS devant le panel (profil "proxy", optionnel)
+  # HTTPS reverse proxy in front of the panel (optional "proxy" profile)
+  # FR : Reverse proxy HTTPS devant le panel (profil "proxy", optionnel)
   #   docker compose --profile proxy up -d
   # ---------------------------------------------------------------------------
   caddy:
@@ -151,7 +166,8 @@ services:
       - panel
     environment:
       TZ: ${TZ:-Europe/Paris}
-      # domaine renseigne -> HTTPS auto ; vide -> ":80" (HTTP local)
+      # domain set -> automatic HTTPS ; empty -> ":80" (local HTTP)
+      # FR : domaine renseigne -> HTTPS auto ; vide -> ":80" (HTTP local)
       CADDY_SITE_ADDRESS: ${CADDY_DOMAIN:-:80}
     ports:
       - "80:80"
@@ -159,7 +175,8 @@ services:
       - "443:443/udp"   # HTTP/3
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data     # certificats : a conserver imperativement
+      # certificates: must be preserved / FR : certificats : a conserver
+      - caddy-data:/data
       - caddy-config:/config
     networks:
       - pz-net

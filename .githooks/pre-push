@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
-# Refuse un push direct sur main : les changements doivent passer par une PR.
+# Refuses a direct push to main: changes must go through a pull request.
 #
-# GitHub reserve la protection de branche aux depots publics ou aux comptes
-# Pro : ce hook joue le meme role, mais cote poste de travail.
+# GitHub restricts branch protection to public repositories or Pro accounts:
+# this hook plays the same role, but on the workstation side.
 #
-# Contournement ponctuel et volontaire :
+# Deliberate one-off bypass:
 #   ALLOW_PUSH_MAIN=1 git push origin main
+#
+# FR : Refuse un push direct sur main : les changements doivent passer par
+# FR : une PR. GitHub reserve la protection de branche aux depots publics ou
+# FR : aux comptes Pro : ce hook joue le meme role, cote poste de travail.
+# FR : Contournement ponctuel : ALLOW_PUSH_MAIN=1 git push origin main
 set -euo pipefail
 
 PROTECTED="refs/heads/main"
@@ -15,7 +20,8 @@ if [ "${ALLOW_PUSH_MAIN:-0}" = "1" ]; then
   exit 0
 fi
 
-# git fournit sur stdin : <local ref> <local sha> <remote ref> <remote sha>
+# git provides on stdin: <local ref> <local sha> <remote ref> <remote sha>
+# FR : git fournit sur stdin : <local ref> <local sha> <remote ref> <remote sha>
 while read -r _local_ref _local_sha remote_ref _remote_sha; do
   if [ "$remote_ref" = "$PROTECTED" ]; then
     printf '\033[31m[pre-push] Push direct sur main refuse.\033[0m\n' >&2

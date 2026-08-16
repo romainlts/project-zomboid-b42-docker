@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  Service de backup planifie.
-#  Tourne en boucle : attend l'heure dite, demande une sauvegarde du monde en
-#  RCON, archive Saves/ et Server/, puis applique la retention.
+#  Scheduled backup service.
+#  Runs in a loop: waits for the configured time, asks the server to save the
+#  world over RCON, archives Saves/ and Server/, then applies retention.
+#
+#  FR : Service de backup planifie.
+#  FR : Tourne en boucle : attend l'heure dite, demande une sauvegarde du monde
+#  FR : en RCON, archive Saves/ et Server/, puis applique la retention.
 # ============================================================================
 set -euo pipefail
 
 ZOMBOID_DIR="${ZOMBOID_DIR:-/zomboid}"
 BACKUP_DIR="${BACKUP_DIR:-/backups}"
-BACKUP_AT="${BACKUP_AT:-04:00}"          # heure quotidienne HH:MM (TZ du conteneur)
-BACKUP_KEEP="${BACKUP_KEEP:-7}"          # nombre d'archives conservees
+# daily time HH:MM (container TZ) / FR : heure quotidienne HH:MM (TZ conteneur)
+BACKUP_AT="${BACKUP_AT:-04:00}"
+# number of archives kept / FR : nombre d'archives conservees
+BACKUP_KEEP="${BACKUP_KEEP:-7}"
 BACKUP_ON_START="${BACKUP_ON_START:-false}"
 RCON_HOST="${RCON_HOST:-pz-server}"
 RCON_PORT="${RCON_PORT:-27015}"
@@ -22,8 +28,11 @@ if ! printf '%s' "$BACKUP_AT" | grep -qE '^[0-2][0-9]:[0-5][0-9]$'; then
   exit 1
 fi
 
-# --- demande au serveur d'ecrire le monde sur disque ------------------------
-# Best effort : si le serveur est arrete ou injoignable, on archive quand meme.
+# --- ask the server to flush the world to disk ------------------------------
+# Best effort: if the server is stopped or unreachable, we archive anyway.
+# FR : demande au serveur d'ecrire le monde sur disque
+# FR : Best effort : si le serveur est arrete ou injoignable, on archive
+# FR : quand meme.
 save_world() {
   if [ -z "$RCON_PASSWORD" ]; then
     log "RCON_PASSWORD vide -> pas de save prealable"
@@ -37,7 +46,8 @@ save_world() {
   fi
 }
 
-# --- archivage ---------------------------------------------------------------
+# --- archiving --------------------------------------------------------------
+# FR : archivage
 do_backup() {
   local stamp out sources=()
   stamp="$(date +%Y%m%d-%H%M%S)"
@@ -53,7 +63,8 @@ do_backup() {
   save_world
 
   log "archivage de ${sources[*]} -> $(basename "$out")"
-  # ecriture sous .part puis renommage : une archive presente est complete
+  # write to .part then rename: any archive you can see is complete
+  # FR : ecriture sous .part puis renommage : une archive presente est complete
   if tar czf "${out}.part" -C "$ZOMBOID_DIR" "${sources[@]}" 2>/dev/null; then
     mv "${out}.part" "$out"
     log "termine : $(basename "$out") ($(du -h "$out" | cut -f1))"
@@ -66,7 +77,8 @@ do_backup() {
   prune
 }
 
-# --- retention ---------------------------------------------------------------
+# --- retention --------------------------------------------------------------
+# FR : retention
 prune() {
   local count
   count="$(find "$BACKUP_DIR" -maxdepth 1 -name 'pz-backup-*.tar.gz' | wc -l)"
@@ -75,7 +87,8 @@ prune() {
     return 0
   fi
   log "retention : ${count} archives > ${BACKUP_KEEP}, suppression des plus anciennes"
-  # les noms sont horodates -> le tri lexicographique suffit
+  # names are timestamped -> lexicographic sort is enough
+  # FR : les noms sont horodates -> le tri lexicographique suffit
   find "$BACKUP_DIR" -maxdepth 1 -name 'pz-backup-*.tar.gz' | sort \
     | head -n "$(( count - BACKUP_KEEP ))" \
     | while read -r old; do
@@ -84,7 +97,8 @@ prune() {
       done
 }
 
-# --- attente jusqu'au prochain BACKUP_AT ------------------------------------
+# --- wait until the next BACKUP_AT ------------------------------------------
+# FR : attente jusqu'au prochain BACKUP_AT
 sleep_until_next() {
   local now target delay pid
   now="$(date +%s)"
@@ -92,7 +106,8 @@ sleep_until_next() {
   [ "$target" -le "$now" ] && target="$(date -d "tomorrow ${BACKUP_AT}" +%s)"
   delay="$(( target - now ))"
   log "prochain backup le $(date -d "@${target}" '+%Y-%m-%d %H:%M') (dans $(( delay / 3600 ))h$(( (delay % 3600) / 60 ))m)"
-  # sleep en arriere-plan + wait : le trap SIGTERM reste reactif
+  # background sleep + wait: keeps the SIGTERM trap responsive
+  # FR : sleep en arriere-plan + wait : le trap SIGTERM reste reactif
   sleep "$delay" &
   pid=$!
   wait "$pid"
