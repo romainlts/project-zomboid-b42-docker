@@ -1,159 +1,159 @@
-# PZ B42 Docker - serveur Project Zomboid Build 42 + panel web
+# PZ B42 Docker - Project Zomboid Build 42 server + web panel
 
-Stack Docker « ready to use » : un serveur dédié **Project Zomboid Build 42**
-(installé et mis à jour par SteamCMD) + le
+***English** | [Français](README.fr.md)*
+
+A ready-to-use Docker stack: a dedicated **Project Zomboid Build 42** server
+(installed and updated through SteamCMD) plus the
 **[Zomboid Control Panel](https://github.com/fpsacha/zomboid-control-panel)**
-pour l'administrer depuis un navigateur.
+to administer it from a browser.
 
-| Service | Rôle | Ports |
+| Service | Role | Ports |
 |---|---|---|
-| `pz-server` | serveur dédié PZ B42 | 16261-16263/udp - RCON 27015 interne |
-| `panel` | interface d'admin web | 3001 |
-| `backup` | archivage quotidien du monde vers `./backups` | - |
-| `caddy` | reverse proxy HTTPS (optionnel, profil `proxy`) | 80, 443 |
+| `pz-server` | dedicated PZ B42 server | 16261-16263/udp - RCON 27015, internal |
+| `panel` | web admin interface | 3001 |
+| `backup` | daily world archiving to `./backups` | - |
+| `caddy` | HTTPS reverse proxy (optional, `proxy` profile) | 80, 443 |
 
-Tous les services partagent deux volumes (`pz-install`, `zomboid-data`) : le
-panel voit donc les configs, mods, logs et sauvegardes du serveur, et lui parle
-en RCON sur le réseau interne `pz-net`.
+All services share two volumes (`pz-install`, `zomboid-data`), so the panel can
+read the server's configs, mods, logs and saves, and talks to it over RCON on
+the internal `pz-net` network.
 
 ---
 
 # 1. Installation
 
-## Prérequis
+## Requirements
 
 - **Docker Desktop** ([Windows/macOS](https://www.docker.com/products/docker-desktop/))
-  ou **Docker Engine + plugin compose** (Linux)
-- ~10 Go de disque libre
-- 6 Go de RAM alloués au serveur par défaut (`SERVER_MEMORY`)
+  or **Docker Engine + compose plugin** (Linux)
+- ~10 GB of free disk space
+- 6 GB of RAM allocated to the server by default (`SERVER_MEMORY`)
 
-**Windows** : Docker Desktop doit tourner sur le backend **WSL2**. Le stack
-n'utilise que des volumes nommés pour les données du jeu, donc pas de souci de
-permissions ni de perfs disque.
+**Windows**: Docker Desktop must run on the **WSL2** backend. The stack only
+uses named volumes for game data, so there are no permission or disk
+performance issues.
 
-**Linux** : aligne `PUID`/`PGID` sur ton utilisateur (`id -u`, `id -g`) dans le
-`.env`, sinon les fichiers créés par le conteneur t'appartiendront pas.
+**Linux**: set `PUID`/`PGID` to your own user (`id -u`, `id -g`) in the `.env`,
+otherwise files created by the container will not belong to you.
 
-## Démarrage
+## Getting started
 
 ```bash
 git clone https://github.com/romainlts/project-zomboid-b42-docker.git
 cd project-zomboid-b42-docker
-cp .env.example .env      # Windows PowerShell : Copy-Item .env.example .env
+cp .env.example .env      # Windows PowerShell: Copy-Item .env.example .env
 ```
 
-Édite `.env` : **`ADMIN_PASSWORD` et `RCON_PASSWORD` sont obligatoires**, le
-stack refuse de démarrer sans eux.
+Edit `.env`: **`ADMIN_PASSWORD` and `RCON_PASSWORD` are mandatory**, the stack
+refuses to start without them.
 
 ```bash
 docker compose up -d --build
 docker compose logs -f pz-server
 ```
 
-Le premier démarrage télécharge ~3-5 Go depuis Steam puis génère la carte :
-compte **5 à 15 minutes** avant que le serveur soit joignable.
+The first start downloads ~3-5 GB from Steam and then generates the map: expect
+**5 to 15 minutes** before the server is reachable.
 
-## Premier accès
+## First access
 
-- **Jeu** : rejoins `IP_DU_SERVEUR:16261`
-- **Panel** : <http://localhost:3001> → crée le compte admin au premier accès
-- Dans les réglages du panel, saisis les chemins **conteneur** - `/pz-server`
-  et `/zomboid` - et surtout pas les chemins de ton PC
+- **Game**: join `SERVER_IP:16261`
+- **Panel**: <http://localhost:3001> - create the admin account on first visit
+- In the panel settings, enter the **container** paths - `/pz-server` and
+  `/zomboid` - and definitely not the paths on your own machine
 
 ---
 
 # 2. Configuration
 
-Toute la configuration passe par le fichier `.env`. Les variables sont
-documentées une par une dans [`.env.example`](.env.example) ; voici les
-principales.
+Everything is configured through the `.env` file. Each variable is documented
+in [`.env.example`](.env.example); the main ones are listed below.
 
-| Variable | Rôle |
+| Variable | Role |
 |---|---|
-| `ADMIN_PASSWORD` | mot de passe du compte `admin` in-game (obligatoire) |
-| `RCON_PASSWORD` | mot de passe RCON, utilisé par le panel (obligatoire) |
-| `SERVER_NAME` | nom interne du serveur, détermine le `.ini` et la sauvegarde |
-| `SERVER_PUBLIC` / `SERVER_PUBLIC_NAME` | visibilité et nom dans la liste publique |
-| `SERVER_PASSWORD` | mot de passe pour rejoindre (vide = libre) |
-| `SERVER_MEMORY` | heap Java, `6g` par défaut |
-| `MAX_PLAYERS` / `PZ_PORT` | joueurs simultanés et port de jeu |
-| `TZ`, `PUID`, `PGID` | fuseau horaire et identité système |
+| `ADMIN_PASSWORD` | password of the in-game `admin` account (mandatory) |
+| `RCON_PASSWORD` | RCON password, used by the panel (mandatory) |
+| `SERVER_NAME` | internal server name, drives the `.ini` and the save folder |
+| `SERVER_PUBLIC` / `SERVER_PUBLIC_NAME` | visibility and name in the public list |
+| `SERVER_PASSWORD` | password required to join (empty = open) |
+| `SERVER_MEMORY` | Java heap, `6g` by default |
+| `MAX_PLAYERS` / `PZ_PORT` | concurrent players and game port |
+| `TZ`, `PUID`, `PGID` | timezone and system identity |
 
-Après modification : `docker compose up -d`.
+After any change: `docker compose up -d`.
 
-## `.env` ou panel : qui configure quoi ?
+## `.env` or panel: which one wins?
 
-Les deux éditent le même fichier `Server/<SERVER_NAME>.ini`. Le partage des
-rôles est le suivant :
+Both edit the same `Server/<SERVER_NAME>.ini` file. Responsibilities are split
+as follows:
 
-| Réglage | Qui fait foi |
+| Setting | Source of truth |
 |---|---|
-| Ports, RCON, PUID/PGID, heap Java, branche Steam | **`.env`** - réappliqué à chaque démarrage |
-| `Public`, `PublicName`, `MaxPlayers`, `Password`, `Mods`, `WorkshopItems` | `.env` au **premier démarrage**, puis **le panel** |
-| Sandbox (loot, zombies, météo), joueurs, bans, backups | **le panel** uniquement |
+| Ports, RCON, PUID/PGID, Java heap, Steam branch | **`.env`** - reapplied on every start |
+| `Public`, `PublicName`, `MaxPlayers`, `Password`, `Mods`, `WorkshopItems` | `.env` on **first start**, then **the panel** |
+| Sandbox (loot, zombies, weather), players, bans, backups | **the panel** only |
 
-Autrement dit : le `.env` amorce le serveur, le panel le pilote au quotidien.
-Une modification faite dans l'interface n'est plus écrasée au redémarrage.
+In other words: `.env` bootstraps the server, the panel drives it day to day. A
+change made in the web interface is never overwritten on restart.
 
-Pour réimposer une valeur du `.env` - par exemple remettre la liste de mods à
-plat :
+To force a `.env` value back in - for example to reset the mod list:
 
 ```
 MOD_IDS=2392709985;2705938086
 PZ_FORCE_INI_KEYS=Mods,WorkshopItems
 ```
 
-`docker compose up -d pz-server`, puis **revide `PZ_FORCE_INI_KEYS`** - sinon
-la clé serait réimposée à chaque redémarrage et le panel ne pourrait plus la
-gérer.
+Run `docker compose up -d pz-server`, then **clear `PZ_FORCE_INI_KEYS` again** -
+otherwise the key would be forced on every restart and the panel could no
+longer manage it.
 
-> Les réglages sandbox ne sont pas dans le `.ini` mais dans `SandboxVars.lua` :
-> ils ne sont pilotables que depuis le panel.
+> Sandbox settings do not live in the `.ini` but in `SandboxVars.lua`: they can
+> only be changed from the panel.
 
 ## Mods
 
-Dans `.env` :
+In `.env`:
 
 ```
 WORKSHOP_IDS=2392709985;2705938086
 MOD_IDS=Authentic Z - Current;VISIBLE_BACKPACK_BACKGROUND
 ```
 
-`WORKSHOP_IDS` liste les IDs Steam Workshop, `MOD_IDS` les noms internes des
-mods - les deux sont nécessaires et séparés par des `;`.
+`WORKSHOP_IDS` lists the Steam Workshop IDs, `MOD_IDS` the internal mod names -
+both are required, separated by `;`.
 
-Ces valeurs ne sont prises en compte qu'au **premier démarrage**. Ensuite,
-gère les mods depuis le panel : il détecte en plus les conflits, les
-dépendances manquantes et les problèmes d'ordre de chargement.
+These values are only applied on **first start**. Afterwards, manage mods from
+the panel: it also detects conflicts, missing dependencies and load order
+issues.
 
-## Figer la version du serveur
+## Pinning the server version
 
-Steam sert toujours la **dernière** build de la branche `unstable`. Une mise à
-jour en cours de partie peut casser des mods. Deux niveaux de protection.
+Steam always serves the **latest** build of the `unstable` branch. An update
+mid-playthrough can break mods. Two levels of protection.
 
-### Simple - geler après installation
+### Simple - freeze after installation
 
-Installe une fois, puis dans `.env` :
+Install once, then in `.env`:
 
 ```
 UPDATE_ON_START=false
 ```
 
-`docker compose up -d`. Le conteneur ne rappelle plus Steam au démarrage et
-reste sur la build téléchargée. Suffisant pour un serveur entre amis.
+Run `docker compose up -d`. The container no longer calls Steam on startup and
+stays on the downloaded build. Good enough for a server among friends.
 
-### Strict - pin par manifest
+### Strict - pin by manifest
 
-Reproductible même sur une machine neuve ou après la perte du volume. À
-privilégier en production ou avec des mods sensibles à la version.
+Reproducible even on a fresh machine or after losing the volume. Preferred in
+production, or with mods that are sensitive to the game version.
 
-Sur [SteamDB - depots de 380870](https://steamdb.info/app/380870/depots/) :
+On [SteamDB - depots for 380870](https://steamdb.info/app/380870/depots/):
 
-1. ouvre le depot du **serveur dédié Linux**, note son **Depot ID** ;
-2. onglet *Manifests*, choisis la branche `unstable` et la build voulue, note
-   le **Manifest ID** (un long nombre).
+1. open the **Linux dedicated server** depot and note its **Depot ID**;
+2. in the *Manifests* tab, pick the `unstable` branch and the build you want,
+   then note the **Manifest ID** (a long number).
 
-Dans `.env` :
+In `.env`:
 
 ```
 PZ_DEPOT_ID=<DEPOT_ID>
@@ -161,20 +161,20 @@ PZ_MANIFEST_ID=<MANIFEST_ID>
 PZ_PIN_STRICT=true
 ```
 
-Le serveur télécharge alors cette build exacte. À retenir :
+The server then downloads that exact build. Worth knowing:
 
-- le pin **prime sur `UPDATE_ON_START`** : la build ne bouge plus jamais seule ;
-- aux démarrages suivants, rien n'est retéléchargé si la build est déjà la
-  bonne ;
-- pour changer de version, change `PZ_MANIFEST_ID` et redémarre ; pour revenir
-  au suivi de la branche, vide la variable.
+- pinning **takes precedence over `UPDATE_ON_START`**: the build never moves on
+  its own;
+- on later starts nothing is downloaded again if the build is already correct;
+- to change version, change `PZ_MANIFEST_ID` and restart; to go back to
+  following the branch, clear the variable.
 
-Avec `PZ_PIN_STRICT=true` (défaut), si Steam refuse le téléchargement le
-conteneur **s'arrête** au lieu d'installer une autre build - mieux vaut un
-serveur qui ne démarre pas qu'un serveur sur la mauvaise version. Mets
-`PZ_PIN_STRICT=false` pour accepter un repli sur la dernière build.
+With `PZ_PIN_STRICT=true` (the default), if Steam refuses the download the
+container **stops** instead of installing a different build - a server that
+does not start beats a server on the wrong version. Set `PZ_PIN_STRICT=false`
+to allow falling back to the latest build.
 
-Pour vérifier la build installée :
+To check the installed build:
 
 ```bash
 docker compose exec pz-server sh -c 'grep buildid /pz-server/steamapps/appmanifest_380870.acf'
@@ -182,156 +182,143 @@ docker compose exec pz-server sh -c 'grep buildid /pz-server/steamapps/appmanife
 
 ---
 
-# 3. Utilisation
+# 3. Usage
 
-## Commandes courantes
+## Common commands
 
 ```bash
-docker compose up -d --build      # (re)construire et démarrer
-docker compose stop pz-server     # arrêt propre (sauvegarde du monde)
-docker compose logs -f pz-server  # suivre les logs
-docker compose ps                 # état et santé des services
+docker compose up -d --build      # (re)build and start
+docker compose stop pz-server     # clean shutdown (saves the world)
+docker compose logs -f pz-server  # follow the logs
+docker compose ps                 # service state and health
 docker compose exec pz-server bash
-./scripts/rcon.sh players         # commande RCON en CLI
-./scripts/backup.sh               # backup manuel immédiat
+./scripts/rcon.sh players         # RCON command from the CLI
+./scripts/backup.sh               # immediate manual backup
 ```
 
-L'arrêt laisse 120 s au serveur pour sauvegarder : n'interromps pas un
-`docker compose stop`, sinon le monde peut être perdu.
+Shutdown gives the server 120 s to save: do not interrupt a
+`docker compose stop`, or the world may be lost.
 
-Le serveur tourne avec `restart: unless-stopped` : un `quit` envoyé en RCON
-depuis le panel arrête le process et Docker relance le conteneur - c'est le
-mécanisme de « restart » de l'interface web.
+The server runs with `restart: unless-stopped`: a `quit` sent over RCON from
+the panel stops the process and Docker restarts the container - that is how the
+web interface "restart" button works.
 
-## Backups automatiques
+## Automatic backups
 
-Un service `backup` archive le monde **tous les jours** dans `./backups/`. Il
-est actif par défaut, rien à lancer.
+A `backup` service archives the world **every day** into `./backups/`. It is
+enabled by default, nothing to start.
 
 ```
-BACKUP_AT=04:00        # heure quotidienne (dans le TZ du .env)
-BACKUP_KEEP=7          # archives conservées, les plus vieilles sont purgées
-BACKUP_ON_START=false  # true = backup immédiat au démarrage, pour tester
+BACKUP_AT=04:00        # daily time (in the .env timezone)
+BACKUP_KEEP=7          # archives kept, the oldest ones are pruned
+BACKUP_ON_START=false  # true = back up immediately on startup, to test
 ```
 
-Avant chaque archive, le service envoie un `save` en RCON et attend 15 s pour
-que le monde sur disque soit cohérent. Si le serveur est arrêté ou injoignable,
-il archive quand même et le signale dans les logs.
+Before each archive the service sends an RCON `save` and waits 15 s so that the
+world on disk is consistent. If the server is stopped or unreachable it still
+archives, and says so in the logs.
 
-L'archive contient `Saves/` et `Server/` - pas les ~5 Go d'installation Steam,
-que SteamCMD sait retélécharger. Elle est écrite en `.part` puis renommée : un
-fichier `pz-backup-*.tar.gz` présent est donc toujours complet.
+The archive holds `Saves/` and `Server/` - not the ~5 GB Steam installation,
+which SteamCMD can download again. It is written as `.part` and then renamed,
+so any `pz-backup-*.tar.gz` file you can see is always complete.
 
 ```bash
 docker compose logs -f backup
 ls -lh backups/
 ```
 
-Pour **restaurer**, le plus simple est le panel (onglet Backups). Sinon,
-serveur arrêté :
+To **restore**, the panel is the easiest route (Backups tab). Otherwise, with
+the server stopped:
 
 ```bash
 docker compose stop pz-server
 docker run --rm -v pz-b42_zomboid-data:/zomboid -v "$PWD/backups:/in:ro" \
-  debian:bookworm-slim tar xzf /in/pz-backup-AAAAMMJJ-HHMMSS.tar.gz -C /zomboid
+  debian:bookworm-slim tar xzf /in/pz-backup-YYYYMMDD-HHMMSS.tar.gz -C /zomboid
 docker compose start pz-server
 ```
 
-## État de santé
+## Health status
 
 ```bash
-docker compose ps          # colonne STATUS : healthy / unhealthy / starting
+docker compose ps          # STATUS column: healthy / unhealthy / starting
 ```
 
-`pz-server` est sondé par une **requête RCON**, pas par une simple présence de
-processus : un serveur figé en garbage collector ou bloqué au chargement d'un
-mod apparaît bien en `unhealthy`. Le panel est sondé en HTTP.
+`pz-server` is probed with an **RCON request**, not by merely checking that a
+process exists: a server stuck in garbage collection, or hung while loading a
+mod, correctly shows up as `unhealthy`. The panel is probed over HTTP.
 
-Le premier démarrage reste en `starting` pendant `PZ_HEALTH_START_PERIOD`
-(15 min par défaut), le temps du téléchargement Steam et de la génération de la
-carte. Allonge cette valeur si ton serveur est lent, sinon il basculera en
-`unhealthy` à tort.
+The first start stays in `starting` for `PZ_HEALTH_START_PERIOD` (15 min by
+default), covering the Steam download and map generation. Raise that value if
+your server is slow to boot, otherwise it will wrongly flip to `unhealthy`.
 
-> **Un conteneur `unhealthy` n'est pas redémarré automatiquement.**
-> `restart: unless-stopped` réagit au processus qui meurt, pas au healthcheck.
-> Le statut sert au diagnostic.
+> **An `unhealthy` container is not restarted automatically.**
+> `restart: unless-stopped` reacts to the process dying, not to the
+> healthcheck. The status is for diagnostics.
 
-## HTTPS pour le panel
+## HTTPS for the panel
 
-Le panel est en HTTP sur le port 3001 : ne l'expose jamais tel quel sur
-Internet. Le profil `proxy` ajoute un [Caddy](https://caddyserver.com/) devant,
-qui obtient et renouvelle seul un certificat Let's Encrypt.
+The panel serves plain HTTP on port 3001: never expose it to the Internet as
+is. The `proxy` profile puts a [Caddy](https://caddyserver.com/) in front,
+which obtains and renews a Let's Encrypt certificate on its own.
 
-**Prérequis** : un nom de domaine pointant vers l'IP publique de la machine, et
-les ports **80** et **443** ouverts.
+**Requirements**: a domain name pointing at the machine's public IP, and ports
+**80** and **443** open.
 
 ```
-CADDY_DOMAIN=pz.mondomaine.fr
+CADDY_DOMAIN=pz.mydomain.com
 PANEL_BIND=127.0.0.1
-PANEL_CORS_ORIGINS=https://pz.mondomaine.fr
+PANEL_CORS_ORIGINS=https://pz.mydomain.com
 ```
 
 ```bash
 docker compose --profile proxy up -d
 ```
 
-Le panel est alors sur `https://pz.mondomaine.fr` et le port 3001 n'est plus
-joignable de l'extérieur. Le certificat arrive dans les ~30 s qui suivent le
-premier accès ; `docker compose logs -f caddy` si ça coince.
+The panel is then served at `https://pz.mydomain.com` and port 3001 is no
+longer reachable from outside. The certificate arrives within ~30 s of the
+first request; use `docker compose logs -f caddy` if it stalls.
 
-Sans `CADDY_DOMAIN`, Caddy sert le panel en HTTP simple sur le port 80 - utile
-pour tester en local, mais **pas** pour une exposition publique.
+Without `CADDY_DOMAIN`, Caddy serves the panel over plain HTTP on port 80 -
+handy for local testing, but **not** for public exposure.
 
-> Les certificats vivent dans le volume `caddy-data`. Ne le supprime pas :
-> Let's Encrypt limite le nombre de certificats émis par semaine et par domaine.
+> Certificates live in the `caddy-data` volume. Do not delete it: Let's Encrypt
+> rate-limits how many certificates it issues per domain per week.
 
 ---
 
-# Contribuer
+# Security
 
-`main` ne se pousse pas directement : passe par une branche et une pull
-request. Un hook `pre-push` le rappelle, à activer une fois après le clone :
-
-```bash
-git config core.hooksPath .githooks
-```
-
-Pour un push direct volontaire sur `main` :
-`ALLOW_PUSH_MAIN=1 git push origin main`.
-
-# Sécurité
-
-- Ne commit **jamais** ton `.env` (déjà couvert par `.gitignore`).
-- N'expose pas le port 3001 directement sur Internet : active Caddy et mets
+- **Never** commit your `.env` (already covered by `.gitignore`).
+- Do not expose port 3001 directly to the Internet: enable Caddy and set
   `PANEL_BIND=127.0.0.1`.
-- Le port RCON n'est pas publié sur l'hôte : il n'est joignable que depuis le
-  réseau Docker interne.
+- The RCON port is not published on the host: it is only reachable from the
+  internal Docker network.
 
-# Structure
+# Layout
 
 ```
 .
-├── docker-compose.yml        # le stack complet
-├── .env.example              # toute la configuration, commentée
+├── docker-compose.yml        # the whole stack
+├── .env.example              # all configuration, commented
 ├── server/
-│   ├── Dockerfile            # image SteamCMD + PZ B42
-│   ├── entrypoint.sh         # install / update Steam, pin de build, UID/GID
-│   ├── start-server.sh       # génération du .ini, heap Java, arrêt propre
-│   ├── backup-runner.sh      # boucle de backup planifié
+│   ├── Dockerfile            # SteamCMD + PZ B42 image
+│   ├── entrypoint.sh         # Steam install/update, build pinning, UID/GID
+│   ├── start-server.sh       # .ini generation, Java heap, clean shutdown
+│   ├── backup-runner.sh      # scheduled backup loop
 │   └── defaults/
 │       └── server.ini.template
 ├── caddy/
-│   └── Caddyfile             # reverse proxy HTTPS (profil "proxy")
+│   └── Caddyfile             # HTTPS reverse proxy ("proxy" profile)
 └── scripts/
-    ├── backup.sh             # backup manuel
-    └── rcon.sh               # commande RCON en CLI
+    ├── backup.sh             # manual backup
+    └── rcon.sh               # RCON command from the CLI
 ```
 
-# Crédits
+# Credits
 
 - [Project Zomboid](https://projectzomboid.com/) - The Indie Stone
 - [Zomboid Control Panel](https://github.com/fpsacha/zomboid-control-panel) - Sacha Marin
 
-# Licence
+# License
 
-MIT - voir [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).
