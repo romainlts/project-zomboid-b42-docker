@@ -20,6 +20,20 @@ en RCON sur le réseau interne `pz-net`.
 
 ---
 
+# 0. Tu pars d'un serveur nu ?
+
+Si tu déploies sur une machine Debian fraîche - un VPS, une machine dédiée, un
+PC chez toi - commence par
+**[Préparer un serveur dédié Debian](DEBIAN-SETUP.fr.md)**. Le guide déroule
+les mises à jour système, la création d'un utilisateur non privilégié, le
+durcissement SSH, le pare-feu UFW et l'installation de Docker, puis te renvoie
+à la section 1 ci-dessous.
+
+Ton serveur est déjà en place, sécurisé et équipé de Docker ? Passe directement
+à la section 1.
+
+---
+
 # 1. Installation
 
 ## Prérequis

@@ -20,6 +20,18 @@ the internal `pz-net` network.
 
 ---
 
+# 0. Starting from a bare server?
+
+If you are deploying on a fresh Debian machine - a VPS, a dedicated box, a PC
+at home - start with **[Preparing a Debian dedicated server](DEBIAN-SETUP.md)**.
+It walks through system updates, an unprivileged admin user, SSH hardening, the
+UFW firewall and the Docker installation, then hands over to section 1 below.
+
+Already have a set up and secured server with Docker on it? Skip straight to
+section 1.
+
+---
+
 # 1. Installation
 
 ## Requirements
