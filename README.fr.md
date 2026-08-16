@@ -469,17 +469,41 @@ Par défaut le panel ne voit pas le processus du jeu : il cherche dans son
 propre conteneur et n'y trouve aucun Java. La carte affiche `Process Down`,
 `Start` est inerte, et le cycle de vie appartient à `docker compose`.
 
-Deux réglages donnent au panel un vrai contrôle, ce qui corrige aussi
+Ces réglages donnent au panel un vrai contrôle, ce qui corrige aussi
 l'indicateur :
 
 ```
+PANEL_BIND=127.0.0.1
+PANEL_ALLOWED_IPS=ton.ip.ici/32
 PANEL_DOCKER_CONTROL=true
 PANEL_DOCKER_SOCKET=/var/run/docker.sock
+PANEL_DOCKER_GID=<stat -c '%g' /var/run/docker.sock>
 ```
+
+`PANEL_BIND=127.0.0.1` est **obligatoire**, pas seulement conseillé. Laissé à
+`0.0.0.0`, le port 3001 est publié directement sur Internet, ce qui contourne
+Caddy et donc entièrement `PANEL_ALLOWED_IPS` - tu te croirais restreint
+pendant que le panel répond au monde entier sur un autre port. UFW ne couvre
+pas ce cas non plus : Docker écrit ses règles iptables en amont, donc
+`ufw deny 3001` n'a aucun effet sur un port publié.
+
+`PANEL_DOCKER_GID` est nécessaire parce que le panel redescend en `PUID:PGID`
+et que le socket appartient au groupe `docker` de l'hôte. Sans lui le socket
+est monté mais illisible : la carte affiche `Container Down` alors que RCON dit
+le serveur en marche, et les logs répètent
+`connect EACCES /var/run/docker.sock`.
 
 Le conteneur `pz-server` porte déjà le label `zomboid-panel.managed=true` exigé
 par le panel. Termine dans l'interface : `...` -> Edit Server -> *Docker
 Container Name* -> `pz-server`.
+
+Vérifie le résultat plutôt que de te fier à la carte - `Stop` doit laisser le
+conteneur arrêté, ce que l'ancien `quit` RCON ne savait pas faire :
+
+```bash
+docker compose logs panel | grep -i dockerclient
+docker compose ps
+```
 
 > **Comprends l'échange avant d'activer.** Le socket Docker est une API root
 > sans authentification. Tout ce qui l'atteint peut créer un conteneur montant

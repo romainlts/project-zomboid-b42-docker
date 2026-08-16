@@ -457,16 +457,39 @@ By default the panel cannot see the game process: it looks inside its own
 container and finds no Java. The card reads `Process Down`, `Start` does
 nothing, and lifecycle actions belong to `docker compose`.
 
-Two settings hand the panel real control, which also fixes the indicator:
+These settings hand the panel real control, which also fixes the indicator:
 
 ```
+PANEL_BIND=127.0.0.1
+PANEL_ALLOWED_IPS=your.ip.here/32
 PANEL_DOCKER_CONTROL=true
 PANEL_DOCKER_SOCKET=/var/run/docker.sock
+PANEL_DOCKER_GID=<stat -c '%g' /var/run/docker.sock>
 ```
+
+`PANEL_BIND=127.0.0.1` is **required**, not merely advised. Left at `0.0.0.0`,
+port 3001 is published straight to the Internet, which bypasses Caddy and
+therefore bypasses `PANEL_ALLOWED_IPS` completely - you would believe yourself
+restricted while the panel answers the whole world on another port. UFW does
+not cover this either: Docker writes its iptables rules upstream of it, so
+`ufw deny 3001` has no effect on a published port.
+
+`PANEL_DOCKER_GID` is needed because the panel drops to `PUID:PGID` and the
+socket belongs to the host's `docker` group. Without it the socket is mounted
+but unreadable: the card reads `Container Down` while RCON reports the server
+up, and the logs repeat `connect EACCES /var/run/docker.sock`.
 
 The `pz-server` container already carries the `zomboid-panel.managed=true`
 label the panel requires. Finish in the UI: `...` -> Edit Server -> *Docker
 Container Name* -> `pz-server`.
+
+Check the result rather than trusting the card - `Stop` must leave the
+container stopped, which the old RCON `quit` never managed:
+
+```bash
+docker compose logs panel | grep -i dockerclient
+docker compose ps
+```
 
 > **Understand the trade before enabling it.** The Docker socket is an
 > unauthenticated root-level API. Anything that reaches it can create a
