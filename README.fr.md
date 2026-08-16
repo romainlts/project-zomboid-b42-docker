@@ -114,6 +114,48 @@ La carte doit alors afficher `RCON Up`, et `docker compose logs panel` montrer
 > voir un autre. Seul le bouton `Start` de la carte est donc inopérant ; le
 > serveur est piloté par `docker compose` et sa politique de redémarrage.
 
+## PanelBridge
+
+PanelBridge est l'agent en jeu du panel. Il couvre ce que RCON ne sait pas
+faire : téléportation, soin, mode dieu, inventaire, export/import de
+personnage, et les contrôles météo avancés. Sans lui ces boutons restent
+inopérants, mais le serveur et RCON fonctionnent normalement.
+
+Ce n'est **pas un mod Workshop** : il n'a donc rien à faire dans `Mods` ni
+`WorkshopItems`. Le panel copie un unique fichier Lua directement dans les
+fichiers du jeu, à `/pz-server/media/lua/server/PanelBridge.lua`, et le fait
+automatiquement quand tu actives le serveur. Les deux côtés dialoguent ensuite
+par fichiers sous `/zomboid/Lua/panelbridge/<SERVER_NAME>/`, et non par le
+réseau, ce qui explique que ça fonctionne ici sans plomberie supplémentaire :
+les deux conteneurs partagent déjà le volume `zomboid-data`.
+
+L'ordre compte :
+
+1. Ajoute et active le serveur dans le panel, comme ci-dessus. Le fichier Lua
+   est installé à ce moment-là.
+2. Redémarre le serveur de jeu pour qu'il le charge :
+
+   ```bash
+   docker compose restart pz-server
+   ```
+
+`PanelBridge Down` pendant le démarrage du serveur est normal. Une fois lancé,
+`docker compose logs panel` affiche :
+
+```
+[Bridge] Mod connected (age: 0s, players: 0)
+```
+
+Deux points à connaître :
+
+- Le fichier Lua vit dans le volume `pz-install` : il n'est donc **pas** dans
+  les sauvegardes quotidiennes, qui ne couvrent que `/zomboid`. Ce n'est pas
+  grave : si tu perds ce volume, le panel le réinstalle à la prochaine
+  activation.
+- SteamCMD revalide l'installation à chaque démarrage quand
+  `UPDATE_ON_START=true`, mais il ne touche pas au fichier, qui ne fait pas
+  partie du manifeste Steam.
+
 ---
 
 # 2. Configuration
