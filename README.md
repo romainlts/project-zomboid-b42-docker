@@ -140,7 +140,12 @@ issues.
 
 ## Pinning the server version
 
-Steam always serves the **latest** build of the `unstable` branch. An update
+Build 42 is served on the **public** branch - `PZ_BRANCH` is empty by default
+and that is what you want. The other branches Steam publishes for this app are
+`legacy41` (Build 41.78.20) and `42.19` (Build 42.19.1); asking for a branch
+that does not exist makes SteamCMD fail with `Missing configuration`.
+
+Steam always serves the **latest** build of a branch, and an update
 mid-playthrough can break mods. Two levels of protection.
 
 ### Simple - freeze after installation
@@ -159,11 +164,16 @@ stays on the downloaded build. Good enough for a server among friends.
 Reproducible even on a fresh machine or after losing the volume. Preferred in
 production, or with mods that are sensitive to the game version.
 
-On [SteamDB - depots for 380870](https://steamdb.info/app/380870/depots/):
+The Linux dedicated server depot is **380873**. To list the manifests Steam
+currently publishes, ask it directly:
 
-1. open the **Linux dedicated server** depot and note its **Depot ID**;
-2. in the *Manifests* tab, pick the `unstable` branch and the build you want,
-   then note the **Manifest ID** (a long number).
+```bash
+docker compose exec pz-server /opt/steamcmd/steamcmd.sh   +login anonymous +app_info_update 1 +app_info_print 380870 +quit
+```
+
+Look for the `380873` depot, then the `manifests` block: each branch maps to a
+`gid`, which is the manifest ID. [SteamDB](https://steamdb.info/app/380870/depots/)
+shows the same data in a browser.
 
 In `.env`:
 
@@ -210,6 +220,13 @@ docker compose exec pz-server bash
 
 Shutdown gives the server 120 s to save: do not interrupt a
 `docker compose stop`, or the world may be lost.
+
+> `docker compose up -d --build backup` also recreates **pz-server**: both
+> services share the same image, and `backup` depends on the server. Rebuilding
+> for one restarts the other, which disconnects players. The shutdown stays
+> clean (the world is saved), but plan it. To rebuild only the backup service
+> without touching a running game, stop it first with
+> `docker compose stop backup`.
 
 The server runs with `restart: unless-stopped`: a `quit` sent over RCON from
 the panel stops the process and Docker restarts the container - that is how the

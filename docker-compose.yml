@@ -22,7 +22,7 @@ services:
       PGID: ${PGID:-1000}
       TZ: ${TZ:-Europe/Paris}
       PZ_APPID: "380870"
-      PZ_BRANCH: ${PZ_BRANCH:-unstable}
+      PZ_BRANCH: ${PZ_BRANCH:-}
       PZ_BRANCH_PASSWORD: ${PZ_BRANCH_PASSWORD:-}
       PZ_MANIFEST_ID: ${PZ_MANIFEST_ID:-}
       PZ_DEPOT_ID: ${PZ_DEPOT_ID:-}

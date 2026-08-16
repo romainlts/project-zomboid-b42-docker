@@ -63,16 +63,40 @@ do_backup() {
   save_world
 
   log "archivage de ${sources[*]} -> $(basename "$out")"
-  # write to .part then rename: any archive you can see is complete
-  # FR : ecriture sous .part puis renommage : une archive presente est complete
-  if tar czf "${out}.part" -C "$ZOMBOID_DIR" "${sources[@]}" 2>/dev/null; then
-    mv "${out}.part" "$out"
-    log "termine : $(basename "$out") ($(du -h "$out" | cut -f1))"
-  else
-    rm -f "${out}.part"
-    log "ECHEC de l'archivage"
+  # Write to .part then rename: any archive you can see is complete.
+  #
+  # We back up live data: the server keeps writing while tar reads, so files
+  # can change or disappear mid-archive. tar reports that with exit code 1,
+  # which is a warning, not a failure - the archive is still usable. Only
+  # exit 2 and above are fatal. stderr is kept and logged, otherwise a real
+  # failure is impossible to diagnose.
+  #
+  # FR : ecriture sous .part puis renommage : une archive presente est
+  # FR : complete. On sauvegarde des donnees vivantes : le serveur ecrit
+  # FR : pendant que tar lit, donc des fichiers peuvent changer ou dispara-
+  # FR : itre. tar signale cela par le code 1, qui est un avertissement et
+  # FR : non un echec. Seuls les codes >= 2 sont fatals. On conserve stderr,
+  # FR : sinon un vrai echec est indiagnosticable.
+  local err rc
+  err="$(mktemp)"
+  tar --ignore-failed-read -czf "${out}.part" -C "$ZOMBOID_DIR" "${sources[@]}" 2>"$err"
+  rc=$?
+
+  if [ "$rc" -ge 2 ]; then
+    log "ECHEC de l'archivage (tar code ${rc}) :"
+    sed 's/^/  /' "$err" | head -5 | while read -r l; do log "$l"; done
+    rm -f "${out}.part" "$err"
     return 0
   fi
+
+  if [ "$rc" -eq 1 ]; then
+    log "avertissements tar (fichiers modifies pendant la lecture) :"
+    sed 's/^/  /' "$err" | head -3 | while read -r l; do log "$l"; done
+  fi
+  rm -f "$err"
+
+  mv "${out}.part" "$out"
+  log "termine : $(basename "$out") ($(du -h "$out" | cut -f1))"
 
   prune
 }
