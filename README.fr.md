@@ -144,16 +144,16 @@ dépendances manquantes et les problèmes d'ordre de chargement.
 
 ## Figer la version du serveur
 
-Build 42 est servi sur la branche **publique** - `PZ_BRANCH` est vide par
-défaut et c'est ce qu'il faut. Les autres branches publiées par Steam pour
-cette app sont `legacy41` (Build 41.78.20) et `42.19` (Build 42.19.1) ;
-demander une branche inexistante fait échouer SteamCMD avec
+Build 42 est servi sur la branche **publique**, donc `PZ_BRANCH` reste vide -
+c'est ce qu'il faut. Steam publie aussi `legacy41` (Build 41.78.20) et `42.19`
+(Build 42.19.1) pour cette app ; il n'existe **aucune branche pour la 42.20.x
+actuelle**, et demander une branche inexistante fait échouer SteamCMD avec
 `Missing configuration`.
 
 Steam sert toujours la **dernière** build d'une branche, et une mise à jour en
-cours de partie peut casser des mods. Deux niveaux de protection.
+cours de partie peut casser des mods. Deux choses à faire.
 
-### Simple - geler après installation
+### Arrêter les mises à jour
 
 Installe une fois, puis dans `.env` :
 
@@ -162,50 +162,47 @@ UPDATE_ON_START=false
 ```
 
 `docker compose up -d`. Le conteneur ne rappelle plus Steam au démarrage et
-reste sur la build téléchargée. Suffisant pour un serveur entre amis.
+reste sur la build déjà installée. C'est le gel.
 
-### Strict - pin par manifest
-
-Reproductible même sur une machine neuve ou après la perte du volume. À
-privilégier en production ou avec des mods sensibles à la version.
-
-Le depot du serveur dédié Linux est **380873**. Pour lister les manifests
-actuellement publiés, demande-le à Steam directement :
-
-```bash
-docker compose exec pz-server /opt/steamcmd/steamcmd.sh   +login anonymous +app_info_update 1 +app_info_print 380870 +quit
-```
-
-Cherche le depot `380873`, puis le bloc `manifests` : chaque branche donne un
-`gid`, qui est l'ID de manifest. [SteamDB](https://steamdb.info/app/380870/depots/)
-présente les mêmes données dans un navigateur.
-
-Dans `.env` :
-
-```
-PZ_DEPOT_ID=<DEPOT_ID>
-PZ_MANIFEST_ID=<MANIFEST_ID>
-PZ_PIN_STRICT=true
-```
-
-Le serveur télécharge alors cette build exacte. À retenir :
-
-- le pin **prime sur `UPDATE_ON_START`** : la build ne bouge plus jamais seule ;
-- aux démarrages suivants, rien n'est retéléchargé si la build est déjà la
-  bonne ;
-- pour changer de version, change `PZ_MANIFEST_ID` et redémarre ; pour revenir
-  au suivi de la branche, vide la variable.
-
-Avec `PZ_PIN_STRICT=true` (défaut), si Steam refuse le téléchargement le
-conteneur **s'arrête** au lieu d'installer une autre build - mieux vaut un
-serveur qui ne démarre pas qu'un serveur sur la mauvaise version. Mets
-`PZ_PIN_STRICT=false` pour accepter un repli sur la dernière build.
-
-Pour vérifier la build installée :
+Pour savoir où tu en es :
 
 ```bash
 docker compose exec pz-server sh -c 'grep buildid /pz-server/steamapps/appmanifest_380870.acf'
 ```
+
+### Garder une copie de cette build
+
+Ne plus mettre à jour protège la machine sur laquelle tu es. Ça ne te permet
+**pas** de reconstruire la même version ailleurs : repars d'un volume vide dans
+six mois et Steam te donnera ce qui est courant à ce moment-là.
+
+Il n'y a pas de contournement côté Steam. Figer une build exacte demande
+`download_depot`, et un compte anonyme n'a aucune licence de depot - Steam
+répond `missing license for depot (No subscription)`. Seul un compte
+propriétaire de la licence le pourrait, ce qui impliquerait de mettre des
+identifiants Steam dans le `.env`.
+
+Garde donc les binaires :
+
+```bash
+./scripts/install-snapshot.sh
+```
+
+Le script archive le volume `pz-install` dans `backups/`, avec le buildid dans
+le nom du fichier, par exemple `pz-install-24574884-20260816-160000.tar.gz`.
+Ça pèse quelques Go.
+
+Pour restaurer sur n'importe quelle machine, serveur arrêté :
+
+```bash
+docker compose stop pz-server
+docker run --rm -v pz-b42_pz-install:/pz-server -v "$PWD/backups:/in:ro"   debian:bookworm-slim tar xzf /in/pz-install-24574884-20260816-160000.tar.gz -C /pz-server
+docker compose start pz-server
+```
+
+Mets `UPDATE_ON_START=false` avant de redémarrer, sinon Steam met à jour les
+fichiers que tu viens de restaurer. C'est plus fiable qu'un manifest, que
+l'éditeur peut dépublier.
 
 ---
 
@@ -220,7 +217,8 @@ docker compose logs -f pz-server  # suivre les logs
 docker compose ps                 # état et santé des services
 docker compose exec pz-server bash
 ./scripts/rcon.sh players         # commande RCON en CLI
-./scripts/backup.sh               # backup manuel immédiat
+./scripts/backup.sh               # backup manuel immédiat du monde
+./scripts/install-snapshot.sh     # archive la build installée
 ```
 
 L'arrêt laisse 120 s au serveur pour sauvegarder : n'interromps pas un
@@ -345,7 +343,8 @@ pour tester en local, mais **pas** pour une exposition publique.
 ├── caddy/
 │   └── Caddyfile             # reverse proxy HTTPS (profil "proxy")
 └── scripts/
-    ├── backup.sh             # backup manuel
+    ├── backup.sh             # backup manuel du monde
+    ├── install-snapshot.sh   # archive la build installée
     └── rcon.sh               # commande RCON en CLI
 ```
 

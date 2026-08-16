@@ -24,9 +24,6 @@ services:
       PZ_APPID: "380870"
       PZ_BRANCH: ${PZ_BRANCH:-}
       PZ_BRANCH_PASSWORD: ${PZ_BRANCH_PASSWORD:-}
-      PZ_MANIFEST_ID: ${PZ_MANIFEST_ID:-}
-      PZ_DEPOT_ID: ${PZ_DEPOT_ID:-}
-      PZ_PIN_STRICT: ${PZ_PIN_STRICT:-true}
       UPDATE_ON_START: ${UPDATE_ON_START:-true}
       SERVER_NAME: ${SERVER_NAME:-servertest}
       SERVER_PUBLIC: ${SERVER_PUBLIC:-false}

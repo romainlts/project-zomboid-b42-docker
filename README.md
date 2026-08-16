@@ -138,17 +138,18 @@ These values are only applied on **first start**. Afterwards, manage mods from
 the panel: it also detects conflicts, missing dependencies and load order
 issues.
 
-## Pinning the server version
+## Freezing the server version
 
-Build 42 is served on the **public** branch - `PZ_BRANCH` is empty by default
-and that is what you want. The other branches Steam publishes for this app are
-`legacy41` (Build 41.78.20) and `42.19` (Build 42.19.1); asking for a branch
-that does not exist makes SteamCMD fail with `Missing configuration`.
+Build 42 is served on the **public** branch, so `PZ_BRANCH` stays empty - that
+is what you want. Steam also publishes `legacy41` (Build 41.78.20) and `42.19`
+(Build 42.19.1) for this app; there is **no branch for the current 42.20.x**,
+and asking for a branch that does not exist makes SteamCMD fail with
+`Missing configuration`.
 
 Steam always serves the **latest** build of a branch, and an update
-mid-playthrough can break mods. Two levels of protection.
+mid-playthrough can break mods. Two things to do about it.
 
-### Simple - freeze after installation
+### Stop updating
 
 Install once, then in `.env`:
 
@@ -157,50 +158,45 @@ UPDATE_ON_START=false
 ```
 
 Run `docker compose up -d`. The container no longer calls Steam on startup and
-stays on the downloaded build. Good enough for a server among friends.
+stays on the build already installed. This is the freeze.
 
-### Strict - pin by manifest
-
-Reproducible even on a fresh machine or after losing the volume. Preferred in
-production, or with mods that are sensitive to the game version.
-
-The Linux dedicated server depot is **380873**. To list the manifests Steam
-currently publishes, ask it directly:
-
-```bash
-docker compose exec pz-server /opt/steamcmd/steamcmd.sh   +login anonymous +app_info_update 1 +app_info_print 380870 +quit
-```
-
-Look for the `380873` depot, then the `manifests` block: each branch maps to a
-`gid`, which is the manifest ID. [SteamDB](https://steamdb.info/app/380870/depots/)
-shows the same data in a browser.
-
-In `.env`:
-
-```
-PZ_DEPOT_ID=<DEPOT_ID>
-PZ_MANIFEST_ID=<MANIFEST_ID>
-PZ_PIN_STRICT=true
-```
-
-The server then downloads that exact build. Worth knowing:
-
-- pinning **takes precedence over `UPDATE_ON_START`**: the build never moves on
-  its own;
-- on later starts nothing is downloaded again if the build is already correct;
-- to change version, change `PZ_MANIFEST_ID` and restart; to go back to
-  following the branch, clear the variable.
-
-With `PZ_PIN_STRICT=true` (the default), if Steam refuses the download the
-container **stops** instead of installing a different build - a server that
-does not start beats a server on the wrong version. Set `PZ_PIN_STRICT=false`
-to allow falling back to the latest build.
-
-To check the installed build:
+To check what you are on:
 
 ```bash
 docker compose exec pz-server sh -c 'grep buildid /pz-server/steamapps/appmanifest_380870.acf'
 ```
+
+### Keep a copy of that build
+
+Not updating protects the machine you are on. It does **not** let you rebuild
+the same version elsewhere: start from an empty volume six months from now and
+Steam hands you whatever is current.
+
+There is no way around that through Steam. Pinning an exact build needs
+`download_depot`, and an anonymous account has no depot license - Steam answers
+`missing license for depot (No subscription)`. Only an account owning the
+license could, which means putting Steam credentials in the `.env`.
+
+So keep the binaries instead:
+
+```bash
+./scripts/install-snapshot.sh
+```
+
+This archives the `pz-install` volume into `backups/`, with the buildid in the
+file name, e.g. `pz-install-24574884-20260816-160000.tar.gz`. It is a few GB.
+
+To restore it on any machine, with the server stopped:
+
+```bash
+docker compose stop pz-server
+docker run --rm -v pz-b42_pz-install:/pz-server -v "$PWD/backups:/in:ro"   debian:bookworm-slim tar xzf /in/pz-install-24574884-20260816-160000.tar.gz -C /pz-server
+docker compose start pz-server
+```
+
+Set `UPDATE_ON_START=false` before starting again, otherwise Steam updates the
+files you just restored. This is more dependable than a manifest, which the
+publisher can unpublish.
 
 ---
 
@@ -215,7 +211,8 @@ docker compose logs -f pz-server  # follow the logs
 docker compose ps                 # service state and health
 docker compose exec pz-server bash
 ./scripts/rcon.sh players         # RCON command from the CLI
-./scripts/backup.sh               # immediate manual backup
+./scripts/backup.sh               # immediate manual backup of the world
+./scripts/install-snapshot.sh     # archive the installed build
 ```
 
 Shutdown gives the server 120 s to save: do not interrupt a
@@ -339,7 +336,8 @@ handy for local testing, but **not** for public exposure.
 ├── caddy/
 │   └── Caddyfile             # HTTPS reverse proxy ("proxy" profile)
 └── scripts/
-    ├── backup.sh             # manual backup
+    ├── backup.sh             # manual world backup
+    ├── install-snapshot.sh   # archive the installed build
     └── rcon.sh               # RCON command from the CLI
 ```
 
