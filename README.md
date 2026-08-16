@@ -391,6 +391,47 @@ handy for local testing, but **not** for public exposure.
 > Certificates live in the `caddy-data` volume. Do not delete it: Let's Encrypt
 > rate-limits how many certificates it issues per domain per week.
 
+### Blank page behind the proxy
+
+A black screen, with `/assets/*.js` and `.css` answering `500`, means
+`PANEL_CORS_ORIGINS` is missing or does not match. The panel rejects unknown
+origins before serving anything, so the HTML arrives - the tab even shows the
+right title - while no script or stylesheet does.
+
+The panel names the cause in its own logs, so start there rather than with
+Caddy, which only relays the error:
+
+```bash
+docker compose logs --tail 50 panel
+```
+
+```
+Error: Origin blocked by panel CORS policy.
+```
+
+Then check what the container actually received, which is not always what you
+wrote:
+
+```bash
+docker compose exec panel printenv CORS_ORIGINS
+```
+
+It must match the address in the browser exactly: same scheme, no trailing
+slash. Two things silently break the match - an empty value, and a trailing
+`\r` from a `.env` saved with CRLF line endings. Both look correct in an
+editor. To see the raw bytes:
+
+```bash
+docker compose exec panel printenv CORS_ORIGINS | od -c | tail -3
+```
+
+`sed -i 's/\r$//' .env` strips the carriage returns. After any change, recreate
+the container so it picks the value up:
+
+```bash
+docker compose --profile proxy up -d --force-recreate panel
+```
+
 ---
 
 # Security
