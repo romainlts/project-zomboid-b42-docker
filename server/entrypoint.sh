@@ -5,9 +5,11 @@ PZ_DIR="${PZ_DIR:-/pz-server}"
 ZOMBOID_DIR="${ZOMBOID_DIR:-/zomboid}"
 STEAM_DIR="${STEAM_DIR:-/opt/steamcmd}"
 PZ_APPID="${PZ_APPID:-380870}"
-# "" = public branch, "unstable" = Build 42
-# FR : "" = branche publique, "unstable" = Build 42
-PZ_BRANCH="${PZ_BRANCH:-unstable}"
+# "" = public branch, which is Build 42 since B42 went stable.
+# Other known branches: "legacy41" (Build 41.78.20), "42.19" (Build 42.19.1).
+# FR : "" = branche publique, c'est-a-dire Build 42 depuis sa sortie stable.
+# FR : Autres branches connues : "legacy41" (Build 41.78.20), "42.19".
+PZ_BRANCH="${PZ_BRANCH:-}"
 PZ_BRANCH_PASSWORD="${PZ_BRANCH_PASSWORD:-}"
 # exact build pin (e.g. 42.20.2) / FR : pin exact d'une build (ex: 42.20.2)
 PZ_MANIFEST_ID="${PZ_MANIFEST_ID:-}"
@@ -48,7 +50,17 @@ install_or_update() {
   fi
 
   args+=(validate +quit)
-  "$STEAM_DIR/steamcmd.sh" "${args[@]}"
+  # steamcmd exits 0 even when it failed, so check the result instead.
+  # FR : steamcmd sort en 0 meme en cas d'echec : on verifie le resultat.
+  "$STEAM_DIR/steamcmd.sh" "${args[@]}" || true
+
+  if [ ! -f "$PZ_DIR/ProjectZomboid64" ]; then
+    log "ECHEC : SteamCMD n'a pas installe le serveur."
+    log "Branche demandee : '${PZ_BRANCH:-public}'."
+    log "Branches connues : '' (=public, Build 42), 'legacy41', '42.19'."
+    log "Une branche inexistante donne 'Missing configuration'."
+    exit 1
+  fi
 }
 
 # --- pinning an exact build through download_depot --------------------------

@@ -144,8 +144,14 @@ dépendances manquantes et les problèmes d'ordre de chargement.
 
 ## Figer la version du serveur
 
-Steam sert toujours la **dernière** build de la branche `unstable`. Une mise à
-jour en cours de partie peut casser des mods. Deux niveaux de protection.
+Build 42 est servi sur la branche **publique** - `PZ_BRANCH` est vide par
+défaut et c'est ce qu'il faut. Les autres branches publiées par Steam pour
+cette app sont `legacy41` (Build 41.78.20) et `42.19` (Build 42.19.1) ;
+demander une branche inexistante fait échouer SteamCMD avec
+`Missing configuration`.
+
+Steam sert toujours la **dernière** build d'une branche, et une mise à jour en
+cours de partie peut casser des mods. Deux niveaux de protection.
 
 ### Simple - geler après installation
 
@@ -163,11 +169,16 @@ reste sur la build téléchargée. Suffisant pour un serveur entre amis.
 Reproductible même sur une machine neuve ou après la perte du volume. À
 privilégier en production ou avec des mods sensibles à la version.
 
-Sur [SteamDB - depots de 380870](https://steamdb.info/app/380870/depots/) :
+Le depot du serveur dédié Linux est **380873**. Pour lister les manifests
+actuellement publiés, demande-le à Steam directement :
 
-1. ouvre le depot du **serveur dédié Linux**, note son **Depot ID** ;
-2. onglet *Manifests*, choisis la branche `unstable` et la build voulue, note
-   le **Manifest ID** (un long nombre).
+```bash
+docker compose exec pz-server /opt/steamcmd/steamcmd.sh   +login anonymous +app_info_update 1 +app_info_print 380870 +quit
+```
+
+Cherche le depot `380873`, puis le bloc `manifests` : chaque branche donne un
+`gid`, qui est l'ID de manifest. [SteamDB](https://steamdb.info/app/380870/depots/)
+présente les mêmes données dans un navigateur.
 
 Dans `.env` :
 
@@ -214,6 +225,13 @@ docker compose exec pz-server bash
 
 L'arrêt laisse 120 s au serveur pour sauvegarder : n'interromps pas un
 `docker compose stop`, sinon le monde peut être perdu.
+
+> `docker compose up -d --build backup` recrée **aussi pz-server** : les deux
+> services partagent la même image, et `backup` dépend du serveur. Reconstruire
+> pour l'un redémarre l'autre, ce qui déconnecte les joueurs. L'arrêt reste
+> propre (le monde est sauvegardé), mais c'est à anticiper. Pour reconstruire
+> le seul service de backup sans toucher à une partie en cours, arrête-le
+> d'abord avec `docker compose stop backup`.
 
 Le serveur tourne avec `restart: unless-stopped` : un `quit` envoyé en RCON
 depuis le panel arrête le process et Docker relance le conteneur - c'est le
