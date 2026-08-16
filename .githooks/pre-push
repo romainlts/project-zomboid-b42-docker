@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Refuse un push direct sur main : les changements doivent passer par une PR.
+#
+# GitHub reserve la protection de branche aux depots publics ou aux comptes
+# Pro : ce hook joue le meme role, mais cote poste de travail.
+#
+# Contournement ponctuel et volontaire :
+#   ALLOW_PUSH_MAIN=1 git push origin main
+set -euo pipefail
+
+PROTECTED="refs/heads/main"
+
+if [ "${ALLOW_PUSH_MAIN:-0}" = "1" ]; then
+  printf '\033[33m[pre-push]\033[0m ALLOW_PUSH_MAIN=1 -> push sur main autorise\n' >&2
+  exit 0
+fi
+
+# git fournit sur stdin : <local ref> <local sha> <remote ref> <remote sha>
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  if [ "$remote_ref" = "$PROTECTED" ]; then
+    printf '\033[31m[pre-push] Push direct sur main refuse.\033[0m\n' >&2
+    printf '  Passe par une branche et une pull request :\n' >&2
+    printf '    git checkout -b feat/ma-modif\n' >&2
+    printf '    git push -u origin feat/ma-modif\n' >&2
+    printf '    gh pr create --base main\n' >&2
+    printf '  Si le push direct est volontaire : ALLOW_PUSH_MAIN=1 git push origin main\n' >&2
+    exit 1
+  fi
+done
+
+exit 0

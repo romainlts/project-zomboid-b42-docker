@@ -287,6 +287,18 @@ pour tester en local, mais **pas** pour une exposition publique.
 
 ---
 
+# Contribuer
+
+`main` ne se pousse pas directement : passe par une branche et une pull
+request. Un hook `pre-push` le rappelle, à activer une fois après le clone :
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Pour un push direct volontaire sur `main` :
+`ALLOW_PUSH_MAIN=1 git push origin main`.
+
 # Sécurité
 
 - Ne commit **jamais** ton `.env` (déjà couvert par `.gitignore`).
