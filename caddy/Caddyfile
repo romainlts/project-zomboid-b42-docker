@@ -1,0 +1,23 @@
+# =============================================================================
+#  Reverse proxy devant le panel web.
+#
+#  L'adresse du site vient de CADDY_SITE_ADDRESS, injecte par docker-compose
+#  depuis CADDY_DOMAIN (.env) :
+#    - CADDY_DOMAIN=pz.mondomaine.fr -> HTTPS + certificat Let's Encrypt auto
+#    - CADDY_DOMAIN vide             -> ":80", HTTP simple (usage local)
+#
+#  Le panel n'est joignable que par le reseau interne pz-net : Caddy est le
+#  seul service expose sur l'hote.
+# =============================================================================
+
+{$CADDY_SITE_ADDRESS} {
+	encode zstd gzip
+
+	# reverse_proxy gere seul les websockets et les en-tetes X-Forwarded-*
+	reverse_proxy panel:3001
+
+	log {
+		output stdout
+		format console
+	}
+}

@@ -1,0 +1,175 @@
+name: pz-b42
+
+services:
+  # ---------------------------------------------------------------------------
+  # Serveur dedie Project Zomboid (Build 42) - installe/maj via SteamCMD
+  # ---------------------------------------------------------------------------
+  pz-server:
+    build:
+      context: ./server
+      args:
+        UID: ${PUID:-1000}
+        GID: ${PGID:-1000}
+    image: pz-b42-server:local
+    container_name: pz-server
+    restart: unless-stopped
+    stop_grace_period: 120s
+    stdin_open: true
+    tty: true
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-Europe/Paris}
+      PZ_APPID: "380870"
+      PZ_BRANCH: ${PZ_BRANCH:-unstable}
+      PZ_BRANCH_PASSWORD: ${PZ_BRANCH_PASSWORD:-}
+      PZ_MANIFEST_ID: ${PZ_MANIFEST_ID:-}
+      PZ_DEPOT_ID: ${PZ_DEPOT_ID:-}
+      PZ_PIN_STRICT: ${PZ_PIN_STRICT:-true}
+      UPDATE_ON_START: ${UPDATE_ON_START:-true}
+      SERVER_NAME: ${SERVER_NAME:-servertest}
+      SERVER_PUBLIC: ${SERVER_PUBLIC:-false}
+      SERVER_PUBLIC_NAME: ${SERVER_PUBLIC_NAME:-Mon serveur B42}
+      SERVER_PASSWORD: ${SERVER_PASSWORD:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?definis ADMIN_PASSWORD dans .env}
+      SERVER_MEMORY: ${SERVER_MEMORY:-6g}
+      MAX_PLAYERS: ${MAX_PLAYERS:-16}
+      DEFAULT_PORT: ${PZ_PORT:-16261}
+      RCON_PORT: "27015"
+      RCON_PASSWORD: ${RCON_PASSWORD:?definis RCON_PASSWORD dans .env}
+      MOD_IDS: ${MOD_IDS:-}
+      WORKSHOP_IDS: ${WORKSHOP_IDS:-}
+      PZ_FORCE_INI_KEYS: ${PZ_FORCE_INI_KEYS:-}
+    ports:
+      - "${PZ_PORT:-16261}:16261/udp"
+      - "16262:16262/udp"
+      - "16263:16263/udp"
+    volumes:
+      - pz-install:/pz-server
+      - zomboid-data:/zomboid
+    networks:
+      - pz-net
+    healthcheck:
+      # Une requete RCON prouve que la JVM tourne ET que le serveur traite les
+      # commandes - un simple pgrep laisse passer un serveur fige ou en GC.
+      # $$RCON_PASSWORD est resolu dans le conteneur : le mot de passe
+      # n'apparait pas dans "docker inspect".
+      test: ["CMD-SHELL", "rcon -a 127.0.0.1:$$RCON_PORT -p \"$$RCON_PASSWORD\" players >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      # premier boot = telechargement Steam + generation de la carte
+      start_period: ${PZ_HEALTH_START_PERIOD:-900s}
+
+  # ---------------------------------------------------------------------------
+  # Interface d'administration web (Zomboid Control Panel)
+  # https://github.com/fpsacha/zomboid-control-panel
+  # ---------------------------------------------------------------------------
+  panel:
+    image: ghcr.io/fpsacha/zomboid-panel:latest
+    container_name: zomboid-panel
+    restart: unless-stopped
+    depends_on:
+      - pz-server
+    ports:
+      # PANEL_BIND=127.0.0.1 quand Caddy est en place : le panel n'est alors
+      # plus joignable que par le reverse proxy.
+      - "${PANEL_BIND:-0.0.0.0}:${PANEL_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: production
+      TZ: ${TZ:-Europe/Paris}
+      PORT: "3001"
+      PZ_SERVER_PATH: /pz-server
+      PZ_SAVE_PATH: /zomboid
+      RCON_HOST: pz-server
+      RCON_PORT: "27015"
+      RCON_PASSWORD: ${RCON_PASSWORD:?definis RCON_PASSWORD dans .env}
+      RCON_SKIP_SERVER_CHECK: "true"
+      STEAM_API_KEY: ${STEAM_API_KEY:-}
+      CORS_ORIGINS: ${PANEL_CORS_ORIGINS:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ./panel/data:/app/data
+      - ./panel/logs:/app/logs
+      # acces partage aux fichiers du serveur (mods, configs, logs, saves)
+      - pz-install:/pz-server
+      - zomboid-data:/zomboid
+    networks:
+      - pz-net
+    healthcheck:
+      # node est forcement present (le panel est une app node) : pas de
+      # dependance a curl/wget, qui peuvent manquer selon l'image de base.
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3001/', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ---------------------------------------------------------------------------
+  # Backup planifie des sauvegardes et configs -> ./backups
+  # Reutilise l'image du serveur (elle embarque tar et le client rcon).
+  # ---------------------------------------------------------------------------
+  backup:
+    build:
+      context: ./server
+      args:
+        UID: ${PUID:-1000}
+        GID: ${PGID:-1000}
+    image: pz-b42-server:local
+    container_name: pz-backup
+    restart: unless-stopped
+    depends_on:
+      - pz-server
+    user: "${PUID:-1000}:${PGID:-1000}"
+    entrypoint: ["/usr/local/bin/backup-runner.sh"]
+    environment:
+      TZ: ${TZ:-Europe/Paris}
+      ZOMBOID_DIR: /zomboid
+      BACKUP_DIR: /backups
+      BACKUP_AT: ${BACKUP_AT:-04:00}
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
+      BACKUP_ON_START: ${BACKUP_ON_START:-false}
+      RCON_HOST: pz-server
+      RCON_PORT: "27015"
+      RCON_PASSWORD: ${RCON_PASSWORD:?definis RCON_PASSWORD dans .env}
+    volumes:
+      - zomboid-data:/zomboid:ro
+      - ./backups:/backups
+    networks:
+      - pz-net
+
+  # ---------------------------------------------------------------------------
+  # Reverse proxy HTTPS devant le panel (profil "proxy", optionnel)
+  #   docker compose --profile proxy up -d
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: pz-caddy
+    profiles: ["proxy"]
+    restart: unless-stopped
+    depends_on:
+      - panel
+    environment:
+      TZ: ${TZ:-Europe/Paris}
+      # domaine renseigne -> HTTPS auto ; vide -> ":80" (HTTP local)
+      CADDY_SITE_ADDRESS: ${CADDY_DOMAIN:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data     # certificats : a conserver imperativement
+      - caddy-config:/config
+    networks:
+      - pz-net
+
+volumes:
+  pz-install:
+  zomboid-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  pz-net:
+    driver: bridge
