@@ -51,10 +51,15 @@ otherwise files created by the container will not belong to you.
 ## Getting started
 
 ```bash
-git clone https://github.com/romainlts/project-zomboid-b42-docker.git
+git clone --recurse-submodules https://github.com/romainlts/project-zomboid-b42-docker.git
 cd project-zomboid-b42-docker
 cp .env.example .env      # Windows PowerShell: Copy-Item .env.example .env
 ```
+
+> The panel is built from source, vendored as a **git submodule**
+> (`panel/upstream`, a fork of `fpsacha/zomboid-control-panel`). The
+> `--recurse-submodules` above fetches it. If you cloned without it, run
+> `git submodule update --init --recursive` to catch up.
 
 Edit `.env`: **`ADMIN_PASSWORD` and `RCON_PASSWORD` are mandatory**, the stack
 refuses to start without them.

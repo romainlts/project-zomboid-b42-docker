@@ -1,0 +1,3 @@
+[submodule "panel/upstream"]
+	path = panel/upstream
+	url = https://github.com/romainlts/zomboid-control-panel.git

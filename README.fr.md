@@ -53,10 +53,15 @@ permissions ni de perfs disque.
 ## Démarrage
 
 ```bash
-git clone https://github.com/romainlts/project-zomboid-b42-docker.git
+git clone --recurse-submodules https://github.com/romainlts/project-zomboid-b42-docker.git
 cd project-zomboid-b42-docker
 cp .env.example .env      # Windows PowerShell : Copy-Item .env.example .env
 ```
+
+> Le panel est construit depuis ses sources, embarquées en **submodule git**
+> (`panel/upstream`, un fork de `fpsacha/zomboid-control-panel`). Le
+> `--recurse-submodules` ci-dessus le récupère. Si tu as cloné sans, rattrape
+> avec `git submodule update --init --recursive`.
 
 Édite `.env` : **`ADMIN_PASSWORD` et `RCON_PASSWORD` sont obligatoires**, le
 stack refuse de démarrer sans eux.
