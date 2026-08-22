@@ -108,12 +108,52 @@ log "RCON sur 0.0.0.0:${RCON_PORT}"
 
 cd "$PZ_DIR"
 
-# --- Java heap (B42 reads ProjectZomboid64.json) ----------------------------
-# FR : heap Java (B42 lit ProjectZomboid64.json)
-if [ -f "$PZ_DIR/ProjectZomboid64.json" ]; then
-  sed -i "s/-Xmx[0-9]\+[gGmM]/-Xmx${SERVER_MEMORY}/" "$PZ_DIR/ProjectZomboid64.json"
-  sed -i "s/-Xms[0-9]\+[gGmM]/-Xms${SERVER_MEMORY}/" "$PZ_DIR/ProjectZomboid64.json"
-  log "Heap Java fixe a ${SERVER_MEMORY}"
+# --- Java heap + JVM flags (B42 reads ProjectZomboid64.json) -----------------
+# FR : heap Java + flags JVM (B42 lit ProjectZomboid64.json)
+JSON="$PZ_DIR/ProjectZomboid64.json"
+# Extra JVM args to guarantee, space-separated. AlwaysPreTouch commits every
+# heap page at boot (paired with -Xms=-Xmx below) so the game never stalls on
+# a page fault mid-session. The GC is left alone: B42 ships Java with ZGC
+# (generational by default on JDK 24+), which already keeps pauses sub-ms.
+# FR : args JVM supplementaires a garantir, separes par des espaces.
+# FR : AlwaysPreTouch engage toutes les pages du heap au boot (avec -Xms=-Xmx
+# FR : ci-dessous), pour qu'aucun page-fault ne fige la partie. On ne touche
+# FR : pas au GC : ZGC (generationnel par defaut en JDK 24+) garde deja des
+# FR : pauses sous la milliseconde.
+PZ_JVM_EXTRA_ARGS="${PZ_JVM_EXTRA_ARGS:--XX:+AlwaysPreTouch}"
+
+# Insert a vmArg right after the -Xmx line - a mid-array slot, so the JSON
+# trailing comma stays valid - only when the token is not already present.
+# Idempotent: safe to run on every boot without duplicating entries.
+# FR : Insere un vmArg juste apres la ligne -Xmx (au milieu du tableau, la
+# FR : virgule JSON reste valide), seulement si le token n'y est pas deja.
+# FR : Idempotent : rejouable a chaque boot sans creer de doublon.
+add_vmarg_after_xmx() {
+  local token="$1"
+  grep -qF "\"$token\"" "$JSON" && return 0
+  awk -v tok="$token" '
+    { print }
+    /"-Xmx[0-9]/ && !ins { printf "\t\t\t\"%s\",\n", tok; ins=1 }
+  ' "$JSON" > "$JSON.tmp" && mv "$JSON.tmp" "$JSON"
+}
+
+if [ -f "$JSON" ]; then
+  # -Xmx: always realigned on SERVER_MEMORY (an -Xmx line always exists).
+  # FR : -Xmx : toujours realigne sur SERVER_MEMORY.
+  sed -i "s/-Xmx[0-9]\+[gGmM]/-Xmx${SERVER_MEMORY}/" "$JSON"
+  # -Xms = -Xmx: reserve the whole heap up front, no resize pauses in play.
+  # Replace when present, otherwise clone an -Xms entry next to -Xmx.
+  # FR : -Xms = -Xmx : reserve tout le heap d'emblee, pas de pause de resize.
+  # FR : Remplace si present, sinon ajoute une entree -Xms a cote de -Xmx.
+  if grep -q -- '-Xms' "$JSON"; then
+    sed -i "s/-Xms[0-9]\+[gGmM]/-Xms${SERVER_MEMORY}/" "$JSON"
+  else
+    add_vmarg_after_xmx "-Xms${SERVER_MEMORY}"
+  fi
+  for flag in $PZ_JVM_EXTRA_ARGS; do
+    add_vmarg_after_xmx "$flag"
+  done
+  log "Heap Java: Xms=Xmx=${SERVER_MEMORY}, flags: ${PZ_JVM_EXTRA_ARGS}"
 fi
 
 # PZ writes its data to \$HOME/Zomboid -> point it at the shared volume
