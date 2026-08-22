@@ -77,7 +77,26 @@ services:
   # https://github.com/fpsacha/zomboid-control-panel
   # ---------------------------------------------------------------------------
   panel:
-    image: ghcr.io/fpsacha/zomboid-panel:latest
+    # Built from source (git submodule panel/upstream, a fork of
+    # fpsacha/zomboid-control-panel) instead of the prebuilt GHCR image, so the
+    # code can be patched locally. Bump the panel by advancing the submodule:
+    #   git -C panel/upstream fetch && git -C panel/upstream checkout <ref>
+    #   git add panel/upstream && docker compose build panel
+    # FR : Construit depuis les sources (submodule git panel/upstream, un fork
+    # FR : de fpsacha/zomboid-control-panel) au lieu de l'image GHCR prete a
+    # FR : l'emploi, pour pouvoir patcher le code en local. Pour monter de
+    # FR : version, on avance le submodule (voir commandes ci-dessus).
+    build:
+      context: ./panel/upstream
+      args:
+        # Align the panel user with the host, like pz-server, so files written
+        # to the ./panel bind-mounts keep sane ownership.
+        # FR : Aligne l'utilisateur du panel sur l'hote, comme pz-server, pour
+        # FR : que les fichiers ecrits dans les bind-mounts ./panel gardent un
+        # FR : proprietaire coherent.
+        UID: ${PUID:-1000}
+        GID: ${PGID:-1000}
+    image: pz-b42-panel:local
     container_name: zomboid-panel
     restart: unless-stopped
     depends_on:
