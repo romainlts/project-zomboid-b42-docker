@@ -124,17 +124,18 @@ PZ_JVM_EXTRA_ARGS="${PZ_JVM_EXTRA_ARGS:--XX:+AlwaysPreTouch}"
 
 # Insert a vmArg right after the -Xmx line - a mid-array slot, so the JSON
 # trailing comma stays valid - only when the token is not already present.
-# Idempotent: safe to run on every boot without duplicating entries.
+# Idempotent: safe to run on every boot without duplicating entries. Kept to
+# sed, the one text tool this script already relies on everywhere else.
+# Indentation of the inserted line is cosmetic; JSON ignores it.
 # FR : Insere un vmArg juste apres la ligne -Xmx (au milieu du tableau, la
 # FR : virgule JSON reste valide), seulement si le token n'y est pas deja.
-# FR : Idempotent : rejouable a chaque boot sans creer de doublon.
+# FR : Idempotent : rejouable a chaque boot sans doublon. On s'en tient a sed,
+# FR : le seul outil texte deja utilise partout dans ce script.
+# FR : L'indentation de la ligne inseree est cosmetique ; JSON l'ignore.
 add_vmarg_after_xmx() {
   local token="$1"
   grep -qF "\"$token\"" "$JSON" && return 0
-  awk -v tok="$token" '
-    { print }
-    /"-Xmx[0-9]/ && !ins { printf "\t\t\t\"%s\",\n", tok; ins=1 }
-  ' "$JSON" > "$JSON.tmp" && mv "$JSON.tmp" "$JSON"
+  sed -i "/\"-Xmx[0-9]/a \"$token\"," "$JSON"
 }
 
 if [ -f "$JSON" ]; then
